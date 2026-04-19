@@ -44,6 +44,9 @@ async function main() {
 
     const state = gameState.get();
 
+    // Sync mission status indicator
+    refreshHudStatus();
+
     // --- Mission Terminal ---
     const missionTerminalInteractable: Interactable = {
       mesh: landmarks.missionTerminal,
@@ -96,11 +99,13 @@ async function main() {
         return;
       }
       if (action === 'accept') {
-        const mission = MISSIONS[0];
+        const mission = getNextMission();
+        if (!mission) return;
         gameState.update({
           activeMissionId: mission.id,
           missionStatus: transitionMission('none', 'accepted'),
         });
+        refreshHudStatus();
         missionBoardUI?.hide();
         hud?.showMessage(`Mission accepted: ${mission.title}. Head to the airlock to deploy.`, 4000);
         return;
@@ -152,12 +157,19 @@ async function main() {
       });
     }
 
-    hud.showMessage('Objective: Locate and retrieve the Data Core.', 4000);
+    // Sync mission status indicator
+    refreshHudStatus();
+
+    const activeMission = getMission(gameState.get().activeMissionId ?? '');
+    hud.showMessage(
+      `Objective: Locate and retrieve the ${activeMission?.objectiveName ?? 'objective'}.`,
+      4000
+    );
 
     // --- Objective Item ---
     const objectiveInteractable: Interactable = {
       mesh: landmarks.objectiveItem,
-      promptText: 'Retrieve Data Core',
+      promptText: `Retrieve ${activeMission?.objectiveName ?? 'Objective'}`,
       onInteract: () => {
         const ms = gameState.get().missionStatus;
         if (ms === 'objectiveActive') {
@@ -173,8 +185,12 @@ async function main() {
           gameState.update({
             missionStatus: transitionMission(ms2, 'extractionAvailable'),
           });
+          refreshHudStatus();
 
-          hud?.showMessage('Data Core recovered. Head to the extraction point.', 4000);
+          hud?.showMessage(
+            `${activeMission?.objectiveName ?? 'Objective'} recovered. Head to the extraction point.`,
+            4000
+          );
         }
       },
     };
@@ -232,12 +248,16 @@ async function main() {
   // =====================
   // MISSION BOARD OPEN
   // =====================
+  function getNextMission() {
+    const s = gameState.get();
+    return MISSIONS.find(m => !s.completedMissions.includes(m.id)) ?? null;
+  }
+
   function openMissionBoard() {
     const s = gameState.get();
-    const mission = MISSIONS[0];
-    const alreadyCompleted = s.completedMissions.includes(mission.id);
+    const mission = getNextMission();
 
-    if (alreadyCompleted) {
+    if (!mission) {
       hud?.showMessage('No new missions available. Check back later.', 3000);
       return;
     }
@@ -245,6 +265,29 @@ async function main() {
     const canAccept = s.missionStatus === 'none';
     const canDeploy = s.missionStatus === 'accepted' && s.activeMissionId === mission.id;
     missionBoardUI?.show(mission, canAccept, canDeploy);
+  }
+
+  function refreshHudStatus() {
+    const s = gameState.get();
+    if (s.activeMissionId && s.missionStatus !== 'none' && s.missionStatus !== 'returnedToHub') {
+      const mission = getMission(s.activeMissionId);
+      const label = statusLabel(s.missionStatus);
+      hud?.setMissionStatus(mission?.title ?? s.activeMissionId, label);
+    } else {
+      hud?.setMissionStatus(null, null);
+    }
+  }
+
+  function statusLabel(status: string): string {
+    switch (status) {
+      case 'accepted': return 'Accepted';
+      case 'deployed': return 'Deployed';
+      case 'objectiveActive': return 'Find Objective';
+      case 'objectiveComplete': return 'Objective Secured';
+      case 'extractionAvailable': return 'Extract Now';
+      case 'success': return 'Extracting…';
+      default: return status;
+    }
   }
 
   // =====================
@@ -269,6 +312,7 @@ async function main() {
       });
       gameState.setFlag('firstMissionComplete', true);
       gameState.save();
+      refreshHudStatus();
       debriefUI?.hide();
     });
     debriefUI.show(mission);

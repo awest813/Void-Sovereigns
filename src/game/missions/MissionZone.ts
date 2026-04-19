@@ -106,6 +106,19 @@ export function buildMissionZone(scene: Scene): MissionZoneLandmarks {
   objectiveItem.position = new Vector3(0, 0.6, -7.5);
   objectiveItem.material = objectiveMat;
 
+  // Animate: slow rotation + sine-wave bob; auto-removes when objective is collected
+  const baseY = objectiveItem.position.y;
+  let elapsed = 0;
+  const animObserver = scene.onBeforeRenderObservable.add(() => {
+    if (!objectiveItem.isEnabled()) {
+      scene.onBeforeRenderObservable.remove(animObserver);
+      return;
+    }
+    elapsed += scene.getEngine().getDeltaTime() * 0.001;
+    objectiveItem.rotation.y = elapsed * 0.8;
+    objectiveItem.position.y = baseY + Math.sin(elapsed * 1.5) * 0.06;
+  });
+
   // Pedestal for the objective
   const pedestal = MeshBuilder.CreateBox('mz_pedestal', { width: 0.8, height: 0.45, depth: 0.8 }, scene);
   pedestal.position = new Vector3(0, 0.225, -7.5);
