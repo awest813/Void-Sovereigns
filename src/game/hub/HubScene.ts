@@ -63,21 +63,21 @@ export function buildHubScene(scene: Scene): HubLandmarks {
   ceiling.material = ceilingMat;
 
   // Walls
-  const wallPositions: Array<{ pos: Vector3; width: number; height: number; rotY: number }> = [
+  // Walls — using thin boxes so collision works from both sides
+  const wallDefs: Array<{ pos: Vector3; w: number; h: number; d: number }> = [
     // Back wall
-    { pos: new Vector3(0, 1.75, -6), width: 16, height: 3.5, rotY: 0 },
+    { pos: new Vector3(0, 1.75, -6), w: 16, h: 3.5, d: 0.2 },
     // Front wall
-    { pos: new Vector3(0, 1.75, 6), width: 16, height: 3.5, rotY: Math.PI },
+    { pos: new Vector3(0, 1.75, 6), w: 16, h: 3.5, d: 0.2 },
     // Left wall
-    { pos: new Vector3(-8, 1.75, 0), width: 12, height: 3.5, rotY: Math.PI / 2 },
+    { pos: new Vector3(-8, 1.75, 0), w: 0.2, h: 3.5, d: 12 },
     // Right wall
-    { pos: new Vector3(8, 1.75, 0), width: 12, height: 3.5, rotY: -Math.PI / 2 },
+    { pos: new Vector3(8, 1.75, 0), w: 0.2, h: 3.5, d: 12 },
   ];
 
-  wallPositions.forEach((w, i) => {
-    const wall = MeshBuilder.CreatePlane(`hub_wall_${i}`, { width: w.width, height: w.height }, scene);
+  wallDefs.forEach((w, i) => {
+    const wall = MeshBuilder.CreateBox(`hub_wall_${i}`, { width: w.w, height: w.h, depth: w.d }, scene);
     wall.position = w.pos;
-    wall.rotation.y = w.rotY;
     wall.material = wallMat;
     wall.checkCollisions = true;
   });
