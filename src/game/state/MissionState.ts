@@ -6,6 +6,7 @@ export type MissionStatus =
   | 'objectiveComplete'
   | 'extractionAvailable'
   | 'success'
+  | 'failed'
   | 'returnedToHub';
 
 const VALID_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
@@ -16,6 +17,7 @@ const VALID_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
   objectiveComplete: ['extractionAvailable'],
   extractionAvailable: ['success'],
   success: ['returnedToHub'],
+  failed: ['returnedToHub', 'none'],
   returnedToHub: ['none'],
 };
 

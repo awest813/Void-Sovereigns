@@ -34,6 +34,7 @@ canvas#game-canvas {
 /* Premium Classes */
 .glass-panel {
   background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(30px);
   backdrop-filter: blur(30px);
   border: 1px solid var(--border-cyan);
   box-shadow: 0 0 100px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 50, 80, 0.1);

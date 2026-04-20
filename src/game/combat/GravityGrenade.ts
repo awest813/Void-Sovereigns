@@ -1,4 +1,4 @@
-import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, ParticleSystem, Texture, Color4 } from '@babylonjs/core';
+import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, ParticleSystem, Texture, Color4, Ray } from '@babylonjs/core';
 import { SecurityBot } from '../entities/SecurityBot';
 
 export class GravityGrenade {
@@ -23,13 +23,19 @@ export class GravityGrenade {
     const gravity = new Vector3(0, -0.01, 0);
 
     const observer = scene.onBeforeRenderObservable.add(() => {
-        this.mesh.position.addInPlace(velocity);
-        velocity.addInPlace(gravity);
+        const deltaPos = velocity.clone();
+        
+        // Raycast ahead to check for collisions
+        const ray = new Ray(this.mesh.position, deltaPos.normalize(), deltaPos.length() + 0.1);
+        const hit = scene.pickWithRay(ray, (m) => m.checkCollisions);
 
-        // Simple floor collision check
-        if (this.mesh.position.y <= 0.1) {
+        if (hit?.hit) {
+            // If we hit something, detonate
             scene.onBeforeRenderObservable.remove(observer);
             this.detonate();
+        } else {
+            this.mesh.position.addInPlace(deltaPos);
+            velocity.addInPlace(gravity);
         }
     });
 

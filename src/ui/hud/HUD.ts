@@ -4,23 +4,22 @@ import {
   Ellipse,
   Rectangle,
   Control,
-  StackPanel,
 } from '@babylonjs/gui';
-import type { Interactable } from '../../game/interactions/Interactable';
 
 export class HUD {
   private texture: AdvancedDynamicTexture;
   private promptText: TextBlock;
   private crosshair: Ellipse;
-  private statusLabel: TextBlock;
   private statusMission: TextBlock;
   private statusPanel: Rectangle;
   private messageTimer: any = null;
   
   private healthBar: Rectangle;
   private shieldBar: Rectangle;
+  private oxygenBar: Rectangle;
   private xpBar: Rectangle;
   private levelLabel: TextBlock;
+  private ammoLabel: TextBlock;
 
   private bossPanel: Rectangle | null = null;
   private bossBar: Rectangle | null = null;
@@ -47,25 +46,57 @@ export class HUD {
     this.texture.addControl(metricPanel);
 
     // Shield Bar (Bright Cyan)
+    const shieldContainer = new Rectangle('shieldContainer');
+    shieldContainer.width = '100%';
+    shieldContainer.height = '8px';
+    shieldContainer.background = 'rgba(0, 255, 255, 0.1)';
+    shieldContainer.thickness = 0;
+    shieldContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    metricPanel.addControl(shieldContainer);
+
     this.shieldBar = new Rectangle('shieldBar');
     this.shieldBar.width = '100%';
-    this.shieldBar.height = '8px';
+    this.shieldBar.height = '100%';
     this.shieldBar.background = '#00ffff';
     this.shieldBar.thickness = 0;
-    this.shieldBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.shieldBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    metricPanel.addControl(this.shieldBar);
+    shieldContainer.addControl(this.shieldBar);
 
     // Health Bar (Industrial Red) - Below Shield
+    const healthContainer = new Rectangle('healthContainer');
+    healthContainer.width = '100%';
+    healthContainer.height = '4px';
+    healthContainer.top = '12px';
+    healthContainer.background = 'rgba(255, 68, 68, 0.1)';
+    healthContainer.thickness = 0;
+    healthContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    metricPanel.addControl(healthContainer);
+
     this.healthBar = new Rectangle('healthBar');
     this.healthBar.width = '100%';
-    this.healthBar.height = '4px';
-    this.healthBar.top = '12px';
+    this.healthBar.height = '100%';
     this.healthBar.background = '#ff4444';
     this.healthBar.thickness = 0;
-    this.healthBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.healthBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    metricPanel.addControl(this.healthBar);
+    healthContainer.addControl(this.healthBar);
+
+    // Oxygen Bar (Warning Yellow/White) - Below Health
+    const oxygenContainer = new Rectangle('oxygenContainer');
+    oxygenContainer.width = '100%';
+    oxygenContainer.height = '2px';
+    oxygenContainer.top = '20px';
+    oxygenContainer.background = 'rgba(255, 255, 255, 0.05)';
+    oxygenContainer.thickness = 0;
+    oxygenContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    metricPanel.addControl(oxygenContainer);
+
+    this.oxygenBar = new Rectangle('oxygenBar');
+    this.oxygenBar.width = '100%';
+    this.oxygenBar.height = '100%';
+    this.oxygenBar.background = '#ffffff';
+    this.oxygenBar.thickness = 0;
+    this.oxygenBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    oxygenContainer.addControl(this.oxygenBar);
 
     // 3. Status Panel (Mission Intel) - Top Right
     this.statusPanel = new Rectangle('statusPanel');
@@ -114,7 +145,17 @@ export class HUD {
     this.levelLabel.left = '-20px';
     this.texture.addControl(this.levelLabel);
 
-    // 5. Interaction
+    // 5. Ammo Display - Bottom Right (above Level)
+    this.ammoLabel = new TextBlock('ammoLabel', '0/0');
+    this.ammoLabel.color = '#00ffff';
+    this.ammoLabel.fontSize = 24;
+    this.ammoLabel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+    this.ammoLabel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    this.ammoLabel.top = '-50px';
+    this.ammoLabel.left = '-20px';
+    this.texture.addControl(this.ammoLabel);
+
+    // 6. Interaction
     this.promptText = new TextBlock('prompt');
     this.promptText.text = '';
     this.promptText.color = '#ffffff';
@@ -130,6 +171,30 @@ export class HUD {
   updateShield(percent: number): void {
     this.shieldBar.width = `${percent * 100}%`;
     this.shieldBar.background = percent < 0.2 ? '#ff3300' : '#00ffff';
+  }
+
+  updateOxygen(current: number, max: number): void {
+    const percent = Math.max(0, Math.min(1, current / max));
+    this.oxygenBar.width = `${percent * 100}%`;
+    
+    // Change color when low
+    if (percent < 0.25) {
+      this.oxygenBar.background = '#ffaa00';
+    } else {
+      this.oxygenBar.background = '#ffffff';
+    }
+  }
+
+  public showDamageFlash(): void {
+    const flash = new Rectangle('flash');
+    flash.width = '100%';
+    flash.height = '100%';
+    flash.background = 'rgba(255, 0, 0, 0.2)';
+    flash.thickness = 0;
+    this.texture.addControl(flash);
+    setTimeout(() => {
+      flash.dispose();
+    }, 100);
   }
 
   updateXP(percent: number, level: number): void {
@@ -205,6 +270,11 @@ export class HUD {
 
   public showLevelUp(): void {
     this.showMessage("NEURAL LINK UPGRADED: RANK UP", 5000);
+  }
+
+  public updateAmmo(current: number, reserve: number): void {
+    this.ammoLabel.text = `${current} / ${reserve}`;
+    this.ammoLabel.color = current === 0 ? '#ff4444' : (current < 5 ? '#ffaa00' : '#00ffff');
   }
 
   public dispose(): void {

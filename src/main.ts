@@ -1,5 +1,5 @@
 import './index.css';
-import { Vector3 } from '@babylonjs/core';
+import { Vector3, Mesh, Camera } from '@babylonjs/core';
 import { GameEngine } from './engine/GameEngine';
 import { SceneManager } from './engine/scene/SceneManager';
 import { FirstPersonController } from './engine/player/FirstPersonController';
@@ -36,6 +36,7 @@ let inventoryUI: InventoryUI | null = null;
   let debriefUI: DebriefUI | null = null;
   let perkMenuUI: PerkMenuUI | null = null;
   let decryptionUI: DecryptionUI | null = null;
+  let shopUI: ShopUI | null = null;
   let mainMenuUI: MainMenuUI | null = null;
   let loadingUI: LoadingUI | null = null;
   let interactionSystem: InteractionSystem | null = null;
@@ -62,7 +63,7 @@ let inventoryUI: InventoryUI | null = null;
     const scene = engine.createScene();
     const landmarks = await buildHubScene(scene);
 
-    gameState.update({ currentScene: 'hub', version: '0.4.1' });
+    gameState.update({ currentScene: 'hub' });
     gameState.save();
 
     const player = new FirstPersonController(scene, engine.canvas, {
@@ -83,7 +84,7 @@ let inventoryUI: InventoryUI | null = null;
       mesh: landmarks.missionTerminal,
       promptText: 'Access Mission Board',
       onInteract: () => {
-        if (missionBoardUI?.isVisible()) return;
+        if (missionBoardUI?.isVisible) return;
         openMissionBoard();
       },
     };
@@ -232,10 +233,10 @@ let inventoryUI: InventoryUI | null = null;
     });
 
     const activeMission = dataManager.getMission(gameState.get().activeMissionId ?? '');
-    const landmarks = await buildMissionZone(scene, interactionSystem!, hud!, player.camera, health, activeMission?.biome ?? 'industrial');
-    const weaponSystem = new WeaponSystem(scene, player);
+    const landmarks = await buildMissionZone(scene, interactionSystem!, hud!, player.camera as any, health, activeMission?.biome ?? 'industrial');
+    const weaponSystem = new WeaponSystem(scene, player, hud!);
     new OxygenSystem(scene, hud!);
-    new ExtractionSystem(scene, hud!, landmarks.extractionPoint, health);
+    new ExtractionSystem(scene, hud!, landmarks.extractionPoint as Mesh, health);
 
     // Tactical Key Listeners
     window.addEventListener('keydown', (e) => {
@@ -257,10 +258,9 @@ let inventoryUI: InventoryUI | null = null;
     refreshHudStatus();
 
      // Spawn Turrets
-    new Turret(scene, new Vector3(-4, 0, -6), player.camera, health, hud!);
-    new Turret(scene, new Vector3(4, 0, -6), player.camera, health, hud!);
+    new Turret(scene, new Vector3(-4, 0, -6), player.camera as Camera, health, hud!);
+    new Turret(scene, new Vector3(4, 0, -6), player.camera as Camera, health, hud!);
 
-    const activeMission = dataManager.getMission(gameState.get().activeMissionId ?? '');
     hud.showMessage(
       `Objective: Locate and retrieve the ${activeMission?.objectiveName ?? 'objective'}.`,
       4000
@@ -268,7 +268,7 @@ let inventoryUI: InventoryUI | null = null;
 
     // --- Objective Item ---
     const objectiveInteractable: Interactable = {
-      mesh: landmarks.objectiveItem,
+      mesh: landmarks.objectiveItemOrNode as Mesh,
       promptText: `Retrieve ${activeMission?.objectiveName ?? 'Objective'}`,
       onInteract: () => {
         const ms = gameState.get().missionStatus;
@@ -279,8 +279,8 @@ let inventoryUI: InventoryUI | null = null;
           
           if (gameState.addXP(500)) hud?.showLevelUp();
           
-          // Hide the objective item
-          landmarks.objectiveItem.setEnabled(false);
+           // Hide the objective item
+          landmarks.objectiveItemOrNode.setEnabled(false);
           interactionSystem?.unregister(objectiveInteractable);
 
           // Transition to extractionAvailable

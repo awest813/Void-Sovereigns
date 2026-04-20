@@ -30,6 +30,7 @@ export interface GameStateData {
   oxygen: number;
   maxOxygen: number;
   equippedWeapon: 'pistol' | 'shotgun' | 'smg';
+  ammo: Record<'pistol' | 'shotgun' | 'smg', number>;
   
   // RPG Systems
   xp: number;
@@ -56,11 +57,16 @@ export const gameStateStore = createStore<GameStateData>()(
       oxygen: 100,
       maxOxygen: 100,
       equippedWeapon: 'pistol',
+      ammo: {
+        pistol: 60,
+        shotgun: 12,
+        smg: 120,
+      },
       xp: 0,
       level: 1,
       perks: [],
       perkPoints: 0,
-    }),
+    } as GameStateData),
     {
       name: 'void-sovereigns-save',
       storage: createJSONStorage(() => localStorage),
@@ -93,19 +99,24 @@ export const gameState = {
   },
   addXP: (amount: number) => {
     const s = gameStateStore.getState();
-    const newXP = s.xp + amount;
-    const nextLevelXP = s.level * 1000;
-    
-    if (newXP >= nextLevelXP) {
-       gameStateStore.setState({ 
-         xp: newXP - nextLevelXP, 
-         level: s.level + 1,
-         perkPoints: s.perkPoints + 1
-       });
-       return true; // Level up!
+    let newXP = s.xp + amount;
+    let newLevel = s.level;
+    let newPerkPoints = s.perkPoints;
+    let leveledUp = false;
+
+    while (newXP >= newLevel * 1000) {
+      newXP -= newLevel * 1000;
+      newLevel++;
+      newPerkPoints++;
+      leveledUp = true;
     }
-    gameStateStore.setState({ xp: newXP });
-    return false;
+
+    gameStateStore.setState({ 
+      xp: newXP, 
+      level: newLevel,
+      perkPoints: newPerkPoints
+    });
+    return leveledUp;
   },
   getMarketValue: (itemId: string, baseValue: number) => {
     const sat = gameStateStore.getState().marketSaturation[itemId] || 0;

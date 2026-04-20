@@ -3,7 +3,7 @@ import { dataManager } from '../../game/state/DataManager';
 
 export class MissionBoardUI {
   private container: HTMLDivElement;
-  private isVisible = false;
+  public isVisible = false;
   private selectedPlanet: string | null = null;
   private actionHandler: (action: string, missionId?: string) => void = () => {};
 
@@ -25,9 +25,14 @@ export class MissionBoardUI {
     document.body.appendChild(this.container);
   }
 
-  public show(): void {
+  public show(mission?: any, _canAccept?: boolean, _canDeploy?: boolean): void {
     this.isVisible = true;
     this.container.style.display = 'block';
+    
+    if (mission && mission.biome) {
+       this.selectedPlanet = mission.biome;
+    }
+    
     this.render();
   }
 
@@ -150,5 +155,9 @@ export class MissionBoardUI {
         <circle cx="65" cy="50" r="1.5" fill="${color}" opacity="0.5" />
       </svg>
     `;
+  }
+
+  public dispose(): void {
+    this.container.remove();
   }
 }

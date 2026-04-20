@@ -1,13 +1,10 @@
 import { 
   Scene, 
   Vector3, 
-  MeshBuilder, 
   StandardMaterial, 
   Color3, 
-  HemisphericLight, 
   PointLight, 
   TransformNode,
-  GlowLayer,
   SceneLoader,
   AbstractMesh,
   Mesh,
@@ -16,18 +13,16 @@ import {
   Color4
 } from '@babylonjs/core';
 import { ASSETS } from '../AssetManifest';
-import { DungeonGenerator, Room } from './DungeonGenerator';
+import { DungeonGenerator, type RoomNode } from './DungeonGenerator';
 import { InteractionSystem } from '../InteractionSystem';
 import { HUD } from '../../ui/hud/HUD';
 import { HealthSystem } from '../state/HealthSystem';
 import { SecurityBot } from '../entities/SecurityBot';
-import { Turret } from '../entities/Turret';
 import { BossCenturion } from '../entities/BossCenturion';
-import { Interactable } from '../interactions/Interactable';
-import { createHazardStripe } from '../VisualUtils';
+import type { Interactable } from '../interactions/Interactable';
 import { setupIndustrialPalette } from '../MaterialManager';
 import { setupAdvancedRendering } from '../RenderingUtils';
-import { createSteamLeak, createFlickeringLight } from '../effects/EnvironmentalHazards';
+import { createSteamLeak } from '../effects/EnvironmentalHazards';
 import { RadioChatter } from '../effects/RadioChatter';
 import { gameState } from '../state/GameState';
 import { TABLES } from '../state/LootTable';
@@ -64,7 +59,7 @@ export async function buildMissionZone(
   health: HealthSystem,
   biome: 'industrial' | 'arctic' | 'depot' = 'industrial'
 ): Promise<MissionZoneLandmarks> {
-  const mats = setupIndustrialPalette(scene, biome);
+  setupIndustrialPalette(scene, biome);
   setupAdvancedRendering(scene, 'mission');
 
   const generator = new DungeonGenerator();
@@ -139,7 +134,7 @@ export async function buildMissionZone(
   return { objectiveItemOrNode, extractionPoint, lootInteractables };
 }
 
-async function spawnLootBox(scene: Scene, room: any, is: InteractionSystem, hud: HUD): Promise<Interactable> {
+async function spawnLootBox(scene: Scene, room: RoomNode, is: InteractionSystem, hud: HUD): Promise<Interactable> {
   const box = await getModel(scene, ASSETS.ENVIRONMENT.CRATE);
   box.position = room.position.add(new Vector3((Math.random()-0.5)*(room.size.x-2), 0.3, (Math.random()-0.5)*(room.size.z-2)));
   box.scaling = new Vector3(0.6, 0.6, 0.6);
@@ -152,8 +147,7 @@ async function spawnLootBox(scene: Scene, room: any, is: InteractionSystem, hud:
        const table = Math.random() > 0.8 ? TABLES.RARE : TABLES.COMMON;
        const item = table.roll();
        if (item) {
-         const inv = gameState.get().inventory;
-         gameState.update({ inventory: [...inv, { id: item.id, name: item.name, value: item.baseValue }] });
+         gameState.addLoot({ id: item.id, name: item.name, value: item.baseValue });
          hud.showMessage(`Recovered: ${item.name}`);
        }
        box.dispose();
@@ -164,7 +158,7 @@ async function spawnLootBox(scene: Scene, room: any, is: InteractionSystem, hud:
   return interactable;
 }
 
-async function spawnPickup(scene: Scene, room: any, is: InteractionSystem, hud: HUD, health: HealthSystem, type: 'medkit' | 'ammo'): Promise<void> {
+async function spawnPickup(scene: Scene, room: RoomNode, is: InteractionSystem, hud: HUD, health: HealthSystem, type: 'medkit' | 'ammo'): Promise<void> {
   const mesh = await getModel(scene, ASSETS.ENVIRONMENT.CRATE);
   mesh.position = room.position.add(new Vector3((Math.random()-0.5)*(room.size.x-4), 0.3, (Math.random()-0.5)*(room.size.z-4)));
   mesh.scaling = new Vector3(0.4, 0.4, 0.4);

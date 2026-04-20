@@ -22,7 +22,7 @@ export class LootTable {
   }
 
   public roll(): LootEntry | null {
-    if (this.totalWeight === 0) return null;
+    if (this.totalWeight === 0 || this.entries.length === 0) return null;
 
     let random = Math.random() * this.totalWeight;
     for (const entry of this.entries) {
@@ -31,7 +31,17 @@ export class LootTable {
       }
       random -= entry.weight;
     }
-    return null;
+    // Fallback in case of floating point precision issues
+    return this.entries[this.entries.length - 1];
+  }
+
+  public rollMany(count: number): LootEntry[] {
+    const results: LootEntry[] = [];
+    for (let i = 0; i < count; i++) {
+       const item = this.roll();
+       if (item) results.push(item);
+    }
+    return results;
   }
 }
 

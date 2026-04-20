@@ -16,7 +16,7 @@ export class Turret {
   private scene: Scene;
   private base: Mesh;
   private head: Mesh;
-  private target: TransformNode;
+  private target: any;
   private playerHealth: HealthSystem;
   
   private range = 15;
@@ -26,7 +26,7 @@ export class Turret {
   private hud: HUD;
   private health = 30;
 
-  constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem, hud: HUD) {
+  constructor(scene: Scene, position: Vector3, target: any, playerHealth: HealthSystem, hud: HUD) {
     this.scene = scene;
     this.target = target;
     this.playerHealth = playerHealth;
@@ -85,9 +85,7 @@ export class Turret {
     const hit = this.scene.pickWithRay(ray);
 
     // If we hit the player or something very close to player
-    if (hit?.hit && hit.distance < this.range) {
-       // For a prototype, if we're looking at them and they're in range, we hit. 
-       // In a real game we'd check if picking result is the player mesh.
+    if (hit?.hit && hit.pickedMesh?.metadata?.isPlayer) {
        this.playerHealth.takeDamage(this.damage);
        this.triggerMuzzleEffect();
     }

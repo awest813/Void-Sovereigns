@@ -87,6 +87,8 @@ export class SecurityBot {
     this.mesh = result.meshes[0];
     this.mesh.position = position;
     this.mesh.scaling = new Vector3(0.5, 0.5, 0.5);
+    this.mesh.checkCollisions = true;
+    this.mesh.ellipsoid = new Vector3(0.5, 1, 0.5);
     this.anims = result.animationGroups;
     
     // Default to Idle animation
@@ -177,7 +179,11 @@ export class SecurityBot {
     }
 
     this.velocity.addInPlace(steer.scale(1/this.mass));
-    this.mesh.position.addInPlace(this.velocity);
+    
+    // Apply Y-gravity to keep bot grounded
+    this.velocity.y = -0.05;
+    
+    this.mesh.moveWithCollisions(this.velocity);
 
     if (this.velocity.length() > 0.01) {
        this.mesh.lookAt(this.mesh.position.add(this.velocity));
@@ -192,7 +198,7 @@ export class SecurityBot {
       const ray = new Ray(this.mesh.position, direction, this.attackRange);
       const hit = this.scene.pickWithRay(ray);
 
-      if (hit?.hit) {
+      if (hit?.hit && hit.pickedMesh?.metadata?.isPlayer) {
         this.playerHealth.takeDamage(this.damage);
         this.triggerMuzzleEffect();
       }

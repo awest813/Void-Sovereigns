@@ -27,13 +27,17 @@ export class OxygenSystem {
     if (gameState.hasPerk('OXY-EFFICIENCY')) actualRate *= 0.6; // 40% reduction
     
     const newOxygen = Math.max(0, s.oxygen - (actualRate * delta));
+    const percent = newOxygen / s.maxOxygen;
     
     gameState.update({ oxygen: newOxygen });
 
     // HUD Alerts
-    if (newOxygen < 25 && !this.isCritical) {
+    if (percent < 0.25 && !this.isCritical) {
       this.isCritical = true;
       this.hud.showMessage('WARNING: OXYGEN LEVELS CRITICAL', 5000);
+    } else if (percent >= 0.25 && this.isCritical) {
+      this.isCritical = false;
+      this.hud.showMessage('OXYGEN LEVELS STABILIZED', 3000);
     }
     
     if (newOxygen <= 0) {

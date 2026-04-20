@@ -1,14 +1,9 @@
 import {
   Scene,
   Vector3,
-  MeshBuilder,
   StandardMaterial,
   Color3,
   PointLight,
-  Animation,
-  ActionManager,
-  ExecuteCodeAction,
-  Ray,
   ParticleSystem,
   Texture,
   Color4,
@@ -19,6 +14,7 @@ import type { FirstPersonController } from '../../engine/player/FirstPersonContr
 import { gameState } from '../state/GameState';
 import { GravityGrenade } from './GravityGrenade';
 import { ASSETS } from '../AssetManifest';
+import { HUD } from '../../ui/hud/HUD';
 
 export type WeaponRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
@@ -37,6 +33,7 @@ export class WeaponSystem {
   private weaponMesh: AbstractMesh | null = null;
   private currentModelType: string | null = null;
   private muzzleFlash: PointLight | null = null;
+  private hud: HUD;
 
   private stats: WeaponStats = {
     damage: 10,
@@ -48,10 +45,23 @@ export class WeaponSystem {
 
   private bobTime = 0;
   private recoilOffset = Vector3.Zero();
+  
+  private currentMag: Record<string, number> = {
+    pistol: 12,
+    shotgun: 4,
+    smg: 30
+  };
+  private maxMag: Record<string, number> = {
+    pistol: 12,
+    shotgun: 4,
+    smg: 30
+  };
+  private isReloading = false;
 
-  constructor(scene: Scene, player: FirstPersonController) {
+  constructor(scene: Scene, player: FirstPersonController, hud: HUD) {
     this.scene = scene;
     this.player = player;
+    this.hud = hud;
 
     this.scene.onPointerDown = (evt) => {
       if (evt.button === 0) this.fire();
@@ -69,6 +79,7 @@ export class WeaponSystem {
         if (info.event.keyCode === 49) this.switchWeapon('pistol');
         if (info.event.keyCode === 50) this.switchWeapon('shotgun');
         if (info.event.keyCode === 51) this.switchWeapon('smg');
+        if (info.event.keyCode === 82) this.reload(); // 'R' to reload
       }
     });
 
@@ -117,7 +128,9 @@ export class WeaponSystem {
 
     // 2. Target Position with Draw and Recoil
     const targetPos = new Vector3(0.25 + bobX, -0.4 + bobY, 0.6).add(this.recoilOffset);
-    this.weaponMesh.position = Vector3.Lerp(this.weaponMesh.position, targetPos, 0.1);
+    if (this.weaponMesh) {
+       this.weaponMesh.position = Vector3.Lerp(this.weaponMesh.position, targetPos, 0.1);
+    }
     
     // 3. Recoil Recovery
     this.recoilOffset = Vector3.Lerp(this.recoilOffset, Vector3.Zero(), 0.15);
@@ -148,6 +161,8 @@ export class WeaponSystem {
             m.material.emissiveColor = this.stats.color.scale(0.3);
         }
     });
+
+    this.updateHudAmmo();
   }
 
   public switchWeapon(type: 'pistol' | 'shotgun' | 'smg') {
@@ -159,9 +174,16 @@ export class WeaponSystem {
     const weaponType = gameState.get().equippedWeapon;
     const now = Date.now();
 
+    if (this.isReloading) return;
+    if (this.currentMag[weaponType] <= 0) {
+      this.reload();
+      return;
+    }
+
     const fireRate = weaponType === 'smg' ? 100 : (weaponType === 'shotgun' ? 700 : 250);
     if (now - this.lastFireTime < fireRate) return;
     this.lastFireTime = now;
+    this.currentMag[weaponType]--;
 
     // Apply Kickback (Recoil)
     this.recoilOffset = new Vector3(0, 0, -0.15); // Kick weapon back
@@ -180,6 +202,7 @@ export class WeaponSystem {
     }
 
     this.createMuzzleFlash();
+    this.updateHudAmmo();
   }
 
   private performRaycast(spread: number): void {
@@ -204,6 +227,52 @@ export class WeaponSystem {
         mesh.metadata.onHit(this.stats.damage);
       }
     }
+  }
+
+  public melee(): void {
+    const ray = this.player.getForwardRay(2);
+    const hit = this.scene.pickWithRay(ray);
+    if (hit?.hit && hit.pickedMesh) {
+       const mesh = hit.pickedMesh;
+       if (mesh.metadata?.onHit) {
+          mesh.metadata.onHit(this.stats.damage * 2);
+       }
+    }
+  }
+
+  public throwGrenade(): void {
+     new GravityGrenade(this.scene, this.player.camera.position, this.player.camera.getForwardRay(1).direction.scale(0.5));
+  }
+
+  public reload(): void {
+     const weaponType = gameState.get().equippedWeapon;
+     const availableAmmo = gameState.get().ammo[weaponType];
+     const needed = this.maxMag[weaponType] - this.currentMag[weaponType];
+
+     if (this.isReloading || needed <= 0 || availableAmmo <= 0) return;
+
+     this.isReloading = true;
+     
+     // Procedural reload animation (drop weapon)
+     const originalPos = this.weaponMesh?.position.clone() || Vector3.Zero();
+     if (this.weaponMesh) this.weaponMesh.position.y -= 0.5;
+
+     setTimeout(() => {
+        const toReload = Math.min(needed, availableAmmo);
+        const newAmmo = { ...gameState.get().ammo };
+        newAmmo[weaponType] -= toReload;
+        gameState.update({ ammo: newAmmo });
+        
+        this.currentMag[weaponType] += toReload;
+        this.isReloading = false;
+        if (this.weaponMesh) this.weaponMesh.position.copyFrom(originalPos);
+        this.updateHudAmmo();
+     }, 1500); // 1.5s reload
+  }
+
+  private updateHudAmmo(): void {
+     const weaponType = gameState.get().equippedWeapon;
+     this.hud.updateAmmo(this.currentMag[weaponType], gameState.get().ammo[weaponType]);
   }
 
   private createMuzzleFlash(): void {
