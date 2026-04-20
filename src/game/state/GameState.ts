@@ -1,4 +1,17 @@
+import { createStore } from 'zustand/vanilla';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { MissionStatus } from './MissionState';
+
+export interface LootItem {
+  id: string;
+  name: string;
+  value: number;
+}
+
+export interface Equipment {
+  weaponDamage: number;
+  armorDurability: number;
+}
 
 export interface GameStateData {
   currentScene: 'hub' | 'mission';
@@ -6,81 +19,64 @@ export interface GameStateData {
   missionStatus: MissionStatus;
   completedMissions: string[];
   flags: Record<string, boolean>;
+  
+  credits: number;
+  inventory: LootItem[];
+  equipment: Equipment;
+
+  // New Simulation Systems
+  oxygen: number;
+  maxOxygen: number;
+  equippedWeapon: 'pistol' | 'shotgun' | 'smg';
 }
 
-const DEFAULT_STATE: GameStateData = {
-  currentScene: 'hub',
-  activeMissionId: null,
-  missionStatus: 'none',
-  completedMissions: [],
-  flags: {},
+export const gameStateStore = createStore<GameStateData>()(
+  persist(
+    () => ({
+      currentScene: 'hub',
+      activeMissionId: null,
+      missionStatus: 'none',
+      completedMissions: [],
+      flags: {},
+      credits: 0,
+      inventory: [],
+      equipment: {
+        weaponDamage: 10,
+        armorDurability: 100,
+      },
+      oxygen: 100,
+      maxOxygen: 100,
+      equippedWeapon: 'pistol',
+    }),
+    {
+      name: 'void-sovereigns-save',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
+
+// Compatibility / Helper Layer
+export const gameState = {
+  get: () => gameStateStore.getState(),
+  update: (partial: Partial<GameStateData>) => gameStateStore.setState(partial),
+  setFlag: (key: string, value: boolean) => {
+    const flags = { ...gameStateStore.getState().flags, [key]: value };
+    gameStateStore.setState({ flags });
+  },
+  addLoot: (item: LootItem) => {
+    const inventory = [...gameStateStore.getState().inventory, item];
+    gameStateStore.setState({ inventory });
+  },
+  reset: () => {
+     localStorage.removeItem('void-sovereigns-save');
+     window.location.reload(); 
+  },
+  save: () => {
+    // Zustand persist handles this automatically, 
+    // but we can keep it as a no-op or trigger manual sync if needed.
+  },
+  load: () => {
+    // Zustand persist handles this automatically on store creation.
+    return true;
+  }
 };
-
-class GameState {
-  private data: GameStateData;
-  private listeners: Array<(state: GameStateData) => void> = [];
-
-  constructor() {
-    this.data = { ...DEFAULT_STATE, completedMissions: [], flags: {} };
-  }
-
-  get(): Readonly<GameStateData> {
-    return this.data;
-  }
-
-  update(partial: Partial<GameStateData>): void {
-    this.data = { ...this.data, ...partial };
-    this.notify();
-  }
-
-  setFlag(key: string, value: boolean): void {
-    this.data.flags = { ...this.data.flags, [key]: value };
-    this.notify();
-  }
-
-  getFlag(key: string): boolean {
-    return this.data.flags[key] ?? false;
-  }
-
-  subscribe(listener: (state: GameStateData) => void): () => void {
-    this.listeners.push(listener);
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
-  reset(): void {
-    this.data = { ...DEFAULT_STATE, completedMissions: [], flags: {} };
-    this.notify();
-  }
-
-  save(): void {
-    try {
-      localStorage.setItem('void-sovereigns-save', JSON.stringify(this.data));
-    } catch {
-      // localStorage may not be available
-    }
-  }
-
-  load(): boolean {
-    try {
-      const raw = localStorage.getItem('void-sovereigns-save');
-      if (raw) {
-        this.data = JSON.parse(raw) as GameStateData;
-        this.notify();
-        return true;
-      }
-    } catch {
-      // ignore corrupt saves
-    }
-    return false;
-  }
-
-  private notify(): void {
-    for (const listener of this.listeners) {
-      listener(this.data);
-    }
-  }
-}
-
-export const gameState = new GameState();

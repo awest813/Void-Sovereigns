@@ -21,10 +21,10 @@ export class MissionBoardUI {
     this.container = new Rectangle('mbContainer');
     this.container.width = '600px';
     this.container.height = '500px';
-    this.container.cornerRadius = 4;
+    this.container.cornerRadius = 2;
     this.container.color = '#44ffcc';
-    this.container.thickness = 2;
-    this.container.background = '#0a0e14ee';
+    this.container.thickness = 1;
+    this.container.background = '#0a0e14cc'; // Frosted glass
     this.container.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.container.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
     this.container.isVisible = false;
@@ -58,10 +58,10 @@ export class MissionBoardUI {
     panel.addControl(title);
 
     // Briefing
-    const briefing = this.makeText(mission.briefing, 14, '#aacccc');
+    const briefing = this.makeText(mission.briefing, 14, '#ffffff');
     briefing.textWrapping = true;
-    briefing.paddingBottom = '12px';
-    briefing.height = '80px';
+    briefing.paddingBottom = '20px';
+    briefing.height = '100px';
     panel.addControl(briefing);
 
     // Details
@@ -123,8 +123,8 @@ export class MissionBoardUI {
     tb.text = text;
     tb.color = color;
     tb.fontSize = size;
-    tb.fontFamily = '"Courier New", monospace';
-    tb.height = `${size + 12}px`;
+    tb.fontFamily = '"Outfit", sans-serif';
+    tb.height = `${size + 16}px`;
     tb.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     return tb;
   }
@@ -137,7 +137,7 @@ export class MissionBoardUI {
     btn.cornerRadius = 2;
     btn.thickness = 1;
     btn.background = '#1a1e24';
-    btn.fontFamily = '"Courier New", monospace';
+    btn.fontFamily = '"Outfit", sans-serif';
     btn.fontSize = 14;
     btn.paddingLeft = '8px';
     btn.paddingRight = '8px';

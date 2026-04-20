@@ -1,175 +1,170 @@
 import {
   Scene,
   Vector3,
-  Color3,
   MeshBuilder,
-  StandardMaterial,
-  HemisphericLight,
-  PointLight,
   GlowLayer,
+  TransformNode,
+  PointLight,
+  HemisphericLight,
   type Mesh,
 } from '@babylonjs/core';
-
-function makeMaterial(scene: Scene, name: string, diffuse: Color3, emissive?: Color3): StandardMaterial {
-  const mat = new StandardMaterial(name, scene);
-  mat.diffuseColor = diffuse;
-  mat.specularColor = new Color3(0.1, 0.1, 0.1);
-  if (emissive) {
-    mat.emissiveColor = emissive;
-  }
-  return mat;
-}
+import { createIndustrialDetail, createHazardStripe } from '../VisualUtils';
+import { DungeonGenerator } from './DungeonGenerator';
+import { getRandomLoot } from '../../content/lootData';
+import { createSteamLeak, createFlickeringLight } from '../effects/EnvironmentalHazards';
+import { SecurityBot } from '../entities/SecurityBot';
+import { RadioChatter } from '../effects/RadioChatter';
+import { gameState } from '../state/GameState';
+import { HealthSystem } from '../state/HealthSystem';
+import { setupIndustrialPalette } from '../MaterialManager';
+import { setupAdvancedRendering } from '../RenderingUtils';
+import type { Interactable } from '../interactions/Interactable';
+import type { InteractionSystem } from '../InteractionSystem';
+import type { HUD } from '../../ui/hud/HUD';
 
 export interface MissionZoneLandmarks {
   objectiveItem: Mesh;
   extractionPoint: Mesh;
+  lootInteractables: Interactable[];
 }
 
-export function buildMissionZone(scene: Scene): MissionZoneLandmarks {
-  const floorMat = makeMaterial(scene, 'mz_floor', new Color3(0.06, 0.07, 0.08));
-  const wallMat = makeMaterial(scene, 'mz_wall', new Color3(0.1, 0.1, 0.12));
-  const ceilingMat = makeMaterial(scene, 'mz_ceiling', new Color3(0.04, 0.05, 0.06));
-  const objectiveMat = makeMaterial(scene, 'mz_objective', new Color3(0.05, 0.1, 0.08), new Color3(0.2, 0.8, 0.5));
-  const extractMat = makeMaterial(scene, 'mz_extract', new Color3(0.08, 0.06, 0.02), new Color3(0.5, 0.4, 0.1));
-  const damagedMat = makeMaterial(scene, 'mz_damaged', new Color3(0.08, 0.06, 0.05));
-  const pipeMat = makeMaterial(scene, 'mz_pipe', new Color3(0.15, 0.12, 0.1));
-  const dangerMat = makeMaterial(scene, 'mz_danger', new Color3(0.12, 0.03, 0.02), new Color3(0.4, 0.08, 0.02));
+/**
+ * Builds a procedurally generated mission zone with complex rooms and hazards.
+ * Centralized materials and rendering ensure a consistent 'Doom 3' moody aesthetic.
+ */
+export function buildMissionZone(
+  scene: Scene, 
+  interactionSystem: InteractionSystem, 
+  hud: HUD, 
+  player: TransformNode, 
+  health: HealthSystem
+): MissionZoneLandmarks {
+  const mats = setupIndustrialPalette(scene);
+  setupAdvancedRendering(scene, 'mission');
 
   const glow = new GlowLayer('mz_glow', scene);
   glow.intensity = 0.5;
 
-  // Floor
-  const floor = MeshBuilder.CreateGround('mz_floor', { width: 12, height: 18 }, scene);
-  floor.material = floorMat;
-  floor.checkCollisions = true;
+  const generator = new DungeonGenerator();
+  const rooms = generator.generate(Math.random());
 
-  // Ceiling
-  const ceiling = MeshBuilder.CreateGround('mz_ceiling', { width: 12, height: 18 }, scene);
-  ceiling.position.y = 3.2;
-  ceiling.rotation.x = Math.PI;
-  ceiling.material = ceilingMat;
+  // Radio Chatter System
+  new RadioChatter(scene, hud);
 
-  // Walls — corridor-like shape
-  const walls: Array<{ pos: Vector3; w: number; h: number; d: number }> = [
-    // Left wall
-    { pos: new Vector3(-6, 1.6, 0), w: 0.3, h: 3.2, d: 18 },
-    // Right wall
-    { pos: new Vector3(6, 1.6, 0), w: 0.3, h: 3.2, d: 18 },
-    // Far wall (behind objective)
-    { pos: new Vector3(0, 1.6, -9), w: 12, h: 3.2, d: 0.3 },
-    // Near wall (behind extraction)
-    { pos: new Vector3(0, 1.6, 9), w: 12, h: 3.2, d: 0.3 },
-  ];
-  walls.forEach((w, i) => {
-    const wall = MeshBuilder.CreateBox(`mz_wall_${i}`, { width: w.w, height: w.h, depth: w.d }, scene);
-    wall.position = w.pos;
-    wall.material = wallMat;
-    wall.checkCollisions = true;
-  });
+  let objectiveItem: Mesh = null as any;
+  let extractionPoint: Mesh = null as any;
+  const lootInteractables: Interactable[] = [];
 
-  // Interior obstacles — debris / crates
-  const cratePositions = [
-    new Vector3(-3, 0.5, -3),
-    new Vector3(2, 0.5, -5),
-    new Vector3(-1, 0.5, 1),
-    new Vector3(4, 0.5, 4),
-    new Vector3(-4, 0.5, 6),
-  ];
-  cratePositions.forEach((pos, i) => {
-    const crate = MeshBuilder.CreateBox(`mz_crate_${i}`, { width: 1, height: 1, depth: 1 }, scene);
-    crate.position = pos;
-    crate.material = damagedMat;
-    crate.checkCollisions = true;
-    crate.rotation.y = Math.random() * Math.PI;
-  });
+  rooms.forEach(room => {
+    // 1. Room Shell Creation
+    const floor = MeshBuilder.CreateGround(`room_floor_${room.id}`, { width: room.size.x, height: room.size.z }, scene);
+    floor.position = room.position;
+    floor.material = mats.floor;
+    floor.checkCollisions = true;
 
-  // Pipes along walls
-  const pipePositions = [
-    { start: new Vector3(-5.6, 2.5, -8), end: new Vector3(-5.6, 2.5, 8) },
-    { start: new Vector3(5.6, 1.8, -8), end: new Vector3(5.6, 1.8, 8) },
-  ];
-  pipePositions.forEach((p, i) => {
-    const length = Vector3.Distance(p.start, p.end);
-    const pipe = MeshBuilder.CreateCylinder(`mz_pipe_${i}`, { diameter: 0.15, height: length }, scene);
-    pipe.position = Vector3.Center(p.start, p.end);
-    pipe.rotation.x = Math.PI / 2;
-    pipe.material = pipeMat;
-  });
+    // Modular Walls & Details
+    const box = MeshBuilder.CreateBox(`room_shell_${room.id}`, { width: room.size.x, height: room.size.y, depth: room.size.z }, scene);
+    box.position = room.position.add(new Vector3(0, room.size.y / 2, 0));
+    box.material = mats.wall;
+    box.flipFaces(true);
+    box.checkCollisions = true;
 
-  // Danger stripe on floor near objective
-  const dangerStripe = MeshBuilder.CreateGround('mz_danger', { width: 3, height: 0.3 }, scene);
-  dangerStripe.position = new Vector3(0, 0.01, -6);
-  dangerStripe.material = dangerMat;
+    // Phase 3.1: Modular Pillars in corners
+    const corners = [
+      new Vector3(-room.size.x/2, 0, -room.size.z/2),
+      new Vector3(room.size.x/2, 0, -room.size.z/2),
+      new Vector3(-room.size.x/2, 0, room.size.z/2),
+      new Vector3(room.size.x/2, 0, room.size.z/2),
+    ];
+    corners.forEach((c, i) => {
+      const p = MeshBuilder.CreateBox(`pillar_${room.id}_${i}`, { width: 0.4, height: room.size.y, depth: 0.4 }, scene);
+      p.position = room.position.add(c).add(new Vector3(0, room.size.y/2, 0));
+      p.material = mats.wall;
+    });
 
-  // === OBJECTIVE ITEM ===
-  const objectiveItem = MeshBuilder.CreateBox('objective_item', { width: 0.4, height: 0.3, depth: 0.4 }, scene);
-  objectiveItem.position = new Vector3(0, 0.6, -7.5);
-  objectiveItem.material = objectiveMat;
-
-  // Animate: slow rotation + sine-wave bob; auto-removes when objective is collected
-  const baseY = objectiveItem.position.y;
-  let elapsed = 0;
-  const animObserver = scene.onBeforeRenderObservable.add(() => {
-    if (!objectiveItem.isEnabled()) {
-      scene.onBeforeRenderObservable.remove(animObserver);
-      return;
+    // Bulkhead panels on walls
+    for (let i = 0; i < 4; i++) {
+        createIndustrialDetail(scene, 'panel', room.position.add(new Vector3(0, room.size.y/2, 0)));
     }
-    elapsed += scene.getEngine().getDeltaTime() * 0.001;
-    objectiveItem.rotation.y = elapsed * 0.8;
-    objectiveItem.position.y = baseY + Math.sin(elapsed * 1.5) * 0.06;
+
+    // 2. Room Content & Hazards
+    if (room.type === 'Bridge') {
+       objectiveItem = MeshBuilder.CreateBox('objective_item', { width: 0.6, height: 0.4, depth: 0.6 }, scene);
+       objectiveItem.position = room.position.add(new Vector3(0, 0.5, 0));
+       objectiveItem.material = mats.objective;
+       createHazardStripe(scene, room.position.add(new Vector3(0, 2.5, -room.size.z/2 + 0.1)), new Vector3(0, 0, 0));
+    }
+
+    if (room.type === 'Quarters') {
+       extractionPoint = MeshBuilder.CreateBox('extraction_point', { width: 2, height: 3, depth: 0.4 }, scene);
+       extractionPoint.position = room.position.add(new Vector3(0, 1.5, room.size.z/2 - 0.2));
+       extractionPoint.material = mats.extract;
+       createHazardStripe(scene, room.position.add(new Vector3(0, 2.5, room.size.z/2 - 0.1)), new Vector3(0, 0, 0));
+    }
+
+    if (room.type === 'Engine') {
+       createSteamLeak(scene, room.position.add(new Vector3(0, 0, 0)));
+       createFlickeringLight(scene, room.position.add(new Vector3(0, 2, 0)));
+       new SecurityBot(scene, room.position.add(new Vector3(0, 1.5, 0)), player, health);
+    }
+
+    // 3. Procedural Loot
+    if (Math.random() > 0.5 && room.id !== 'hub') {
+       const l = spawnLootBox(scene, room, mats.loot, interactionSystem, hud);
+       lootInteractables.push(l);
+    }
+
+    // 4. Detail Greebles
+    for(let i=0; i<2; i++) {
+       createIndustrialDetail(scene, 'pipe', room.position.add(new Vector3((Math.random()-0.5)*room.size.x, room.size.y-0.2, (Math.random()-0.5)*room.size.z)));
+    }
+
+    createDustParticles(scene, room.position, room.size);
   });
 
-  // Pedestal for the objective
-  const pedestal = MeshBuilder.CreateBox('mz_pedestal', { width: 0.8, height: 0.45, depth: 0.8 }, scene);
-  pedestal.position = new Vector3(0, 0.225, -7.5);
-  pedestal.material = makeMaterial(scene, 'mz_pedestal_mat', new Color3(0.1, 0.1, 0.12));
-  pedestal.checkCollisions = true;
-
-  // === EXTRACTION POINT ===
-  const extractionPoint = MeshBuilder.CreateBox('extraction_point', { width: 2.0, height: 3.0, depth: 0.3 }, scene);
-  extractionPoint.position = new Vector3(0, 1.5, 8.7);
-  extractionPoint.material = extractMat;
-  extractionPoint.checkCollisions = true;
-
-  // Extraction frame
-  const exFrameL = MeshBuilder.CreateBox('mz_exframe_l', { width: 0.12, height: 3.2, depth: 0.35 }, scene);
-  exFrameL.position = new Vector3(-1.1, 1.5, 8.7);
-  exFrameL.material = dangerMat;
-  const exFrameR = MeshBuilder.CreateBox('mz_exframe_r', { width: 0.12, height: 3.2, depth: 0.35 }, scene);
-  exFrameR.position = new Vector3(1.1, 1.5, 8.7);
-  exFrameR.material = dangerMat;
-
-  // === LIGHTING ===
+  // Global Lighting
   const ambient = new HemisphericLight('mz_ambient', new Vector3(0, 1, 0), scene);
-  ambient.intensity = 0.08;
-  ambient.diffuse = new Color3(0.4, 0.5, 0.6);
-  ambient.groundColor = new Color3(0.02, 0.02, 0.04);
-
-  // Sparse overhead lights — flickering feel
-  const lightPositions = [
-    new Vector3(0, 3, -6),
-    new Vector3(-3, 3, 0),
-    new Vector3(3, 3, 3),
-    new Vector3(0, 3, 7),
-  ];
-  lightPositions.forEach((pos, i) => {
-    const light = new PointLight(`mz_light_${i}`, pos, scene);
-    light.intensity = 0.4;
-    light.diffuse = new Color3(0.7, 0.75, 0.9);
-    light.range = 8;
-  });
-
-  // Objective spotlight
-  const objLight = new PointLight('mz_obj_light', new Vector3(0, 2.5, -7.5), scene);
-  objLight.intensity = 0.6;
-  objLight.diffuse = new Color3(0.3, 0.9, 0.5);
-  objLight.range = 5;
-
-  // Dark atmosphere
+  ambient.intensity = 0.1;
   scene.clearColor.set(0.01, 0.02, 0.03, 1);
-  scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.025;
-  scene.fogColor = new Color3(0.01, 0.02, 0.03);
 
-  return { objectiveItem, extractionPoint };
+  return { objectiveItem, extractionPoint, lootInteractables };
+}
+
+function spawnLootBox(scene: Scene, room: any, mat: any, is: InteractionSystem, hud: HUD): Interactable {
+  const box = MeshBuilder.CreateBox(`loot_box_${room.id}`, { width: 0.8, height: 0.6, depth: 0.8 }, scene);
+  box.position = room.position.add(new Vector3((Math.random()-0.5)*(room.size.x-2), 0.3, (Math.random()-0.5)*(room.size.z-2)));
+  box.material = mat;
+  box.checkCollisions = true;
+
+  const interactable: Interactable = {
+    mesh: box,
+    promptText: 'Loot Supply Crate',
+    onInteract: () => {
+      const loot = getRandomLoot();
+      gameState.addLoot({ id: loot.id, name: loot.name, value: loot.value });
+      hud.showMessage(`RECOVERED: ${loot.name}`, 3000);
+      box.dispose();
+      is.unregister(interactable);
+    }
+  };
+  is.register(interactable);
+  return interactable;
+}
+
+import { ParticleSystem, Texture, Color4 } from '@babylonjs/core';
+function createDustParticles(scene: Scene, position: Vector3, size: Vector3): void {
+  const ps = new ParticleSystem('dust', 200, scene);
+  ps.particleTexture = new Texture('https://www.babylonjs-live.com/assets/textures/flare.png', scene);
+  ps.emitter = position;
+  ps.minEmitBox = new Vector3(-size.x/2, 0, -size.z/2);
+  ps.maxEmitBox = new Vector3(size.x/2, size.y, size.z/2);
+  ps.color1 = new Color4(1, 1, 1, 0.1);
+  ps.color2 = new Color4(0.8, 0.8, 0.8, 0.05);
+  ps.minSize = 0.01;
+  ps.maxSize = 0.05;
+  ps.minLifeTime = 10;
+  ps.maxLifeTime = 15;
+  ps.emitRate = 20;
+  ps.gravity = new Vector3(0, -0.01, 0);
+  ps.start();
 }

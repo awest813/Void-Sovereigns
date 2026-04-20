@@ -7,11 +7,18 @@ import { InteractionSystem } from './game/InteractionSystem';
 import { HUD } from './ui/hud/HUD';
 import { MissionBoardUI } from './ui/missionBoard/MissionBoardUI';
 import { DebriefUI } from './ui/debrief/DebriefUI';
+import { ShopUI } from './ui/shop/ShopUI';
 import { buildHubScene } from './game/hub/HubScene';
 import { buildMissionZone } from './game/missions/MissionZone';
-import { gameState } from './game/state/GameState';
+import { gameState, gameStateStore } from './game/state/GameState';
+import { OxygenSystem } from './game/state/OxygenSystem';
+import { ExtractionSystem } from './game/state/ExtractionSystem';
+import { InventoryUI } from './ui/inventory/InventoryUI';
 import { transitionMission } from './game/state/MissionState';
 import { MISSIONS, getMission } from './content/missions/missionData';
+import { WeaponSystem } from './game/combat/WeaponSystem';
+import { HealthSystem } from './game/state/HealthSystem';
+import { Turret } from './game/entities/Turret';
 import type { Interactable } from './game/interactions/Interactable';
 
 async function main() {
@@ -20,19 +27,33 @@ async function main() {
 
   // Shared UI references (recreated per scene)
   let hud: HUD | null = null;
+let inventoryUI: InventoryUI | null = null;
   let missionBoardUI: MissionBoardUI | null = null;
   let debriefUI: DebriefUI | null = null;
+  let shopUI: ShopUI | null = null;
   let interactionSystem: InteractionSystem | null = null;
 
   // Try to load saved state
   gameState.load();
 
+  // State change observer for transitions
+  gameStateStore.subscribe((state, prevState) => {
+    if (state.missionStatus === 'success' && prevState.missionStatus !== 'success') {
+      returnToHub();
+    }
+  });
+
   // =====================
   // HUB SCENE BUILDER
   // =====================
+  function initGlobalUI() {
+    if (!inventoryUI) inventoryUI = new InventoryUI();
+  }
+
   sceneManager.register('hub', async (engine) => {
+    initGlobalUI();
     const scene = engine.createScene();
-    const landmarks = buildHubScene(scene);
+    const landmarks = await buildHubScene(scene);
 
     const player = new FirstPersonController(scene, engine.canvas, {
       position: new Vector3(0, 1.7, 0),
@@ -91,8 +112,20 @@ async function main() {
     };
     interactionSystem.register(deployInteractable);
 
+    // --- Shop Terminal ---
+    const shopTerminalInteractable: Interactable = {
+      mesh: landmarks.shopTerminal,
+      promptText: 'Access Requisitions Shop',
+      onInteract: () => {
+        if (shopUI?.isOpen()) return;
+        shopUI?.show();
+      },
+    };
+    interactionSystem.register(shopTerminalInteractable);
+
     // --- Mission Board UI ---
     missionBoardUI = new MissionBoardUI();
+    shopUI = new ShopUI();
     missionBoardUI.setActionHandler((action) => {
       if (action === 'close') {
         missionBoardUI?.hide();
@@ -139,8 +172,7 @@ async function main() {
   // =====================
   sceneManager.register('mission', async (engine) => {
     const scene = engine.createScene();
-    const landmarks = buildMissionZone(scene);
-
+    
     const player = new FirstPersonController(scene, engine.canvas, {
       position: new Vector3(0, 1.7, 7.5),
     });
@@ -148,6 +180,38 @@ async function main() {
     interactionSystem = new InteractionSystem(scene, player);
     hud = new HUD();
     interactionSystem.setOnTargetChange((target) => hud?.updateInteractionTarget(target));
+    const health = new HealthSystem({
+      maxHealth: 100,
+      onDamage: (current, max) => {
+        hud?.updateHealth(current / max);
+        hud?.showDamageFlash();
+        hud?.showMessage('CRITICAL: Damage detected!', 2000);
+      },
+      onDeath: () => {
+        hud?.showMessage('VITAL SIGNS LOST. EMERGENCY EXTRACTION FAILED.', 5000);
+        setTimeout(() => {
+          // Reset mission status and return
+          gameState.update({
+            missionStatus: transitionMission('none', 'none'),
+            activeMissionId: null,
+          });
+          returnToHub();
+        }, 3000);
+      }
+    });
+
+    const landmarks = buildMissionZone(scene, interactionSystem!, hud!, player.camera, health);
+    const weaponSystem = new WeaponSystem(scene, player);
+    new OxygenSystem(scene, hud!);
+    new ExtractionSystem(scene, hud!, landmarks.extractionPoint, health);
+
+    // Tactical Key Listeners
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'f') weaponSystem.melee();
+      if (e.key.toLowerCase() === 'g') weaponSystem.throwGrenade();
+    });
+    // Initial HUD sync
+    hud.updateHealth(1.0);
 
     // Transition to objectiveActive
     const s = gameState.get();
@@ -159,6 +223,10 @@ async function main() {
 
     // Sync mission status indicator
     refreshHudStatus();
+
+    // Spawn Turrets
+    new Turret(scene, new Vector3(-4, 0, -6), player.camera, health);
+    new Turret(scene, new Vector3(4, 0, -6), player.camera, health);
 
     const activeMission = getMission(gameState.get().activeMissionId ?? '');
     hud.showMessage(
@@ -241,6 +309,8 @@ async function main() {
     missionBoardUI = null;
     debriefUI?.dispose();
     debriefUI = null;
+    shopUI?.dispose();
+    shopUI = null;
     interactionSystem?.clearAll();
     interactionSystem = null;
   }

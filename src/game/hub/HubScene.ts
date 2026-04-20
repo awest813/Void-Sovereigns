@@ -1,201 +1,141 @@
 import {
   Scene,
   Vector3,
-  Color3,
   MeshBuilder,
-  StandardMaterial,
-  HemisphericLight,
+  GlowLayer,
+  SceneLoader,
+  TransformNode,
   PointLight,
   SpotLight,
-  GlowLayer,
+  Sound,
   type Mesh,
 } from '@babylonjs/core';
-
-// Colors for the industrial sci-fi palette
-const FLOOR_COLOR = new Color3(0.08, 0.09, 0.1);
-const WALL_COLOR = new Color3(0.12, 0.13, 0.14);
-const CEILING_COLOR = new Color3(0.06, 0.07, 0.08);
-const TERMINAL_COLOR = new Color3(0.02, 0.08, 0.06);
-const TERMINAL_EMISSIVE = new Color3(0.1, 0.6, 0.5);
-const DEPLOY_COLOR = new Color3(0.08, 0.06, 0.02);
-const DEPLOY_EMISSIVE = new Color3(0.6, 0.5, 0.1);
-const ACCENT_COLOR = new Color3(0.15, 0.04, 0.04);
-const ACCENT_EMISSIVE = new Color3(0.5, 0.1, 0.05);
-
-function makeMaterial(scene: Scene, name: string, diffuse: Color3, emissive?: Color3): StandardMaterial {
-  const mat = new StandardMaterial(name, scene);
-  mat.diffuseColor = diffuse;
-  mat.specularColor = new Color3(0.1, 0.1, 0.1);
-  if (emissive) {
-    mat.emissiveColor = emissive;
-  }
-  return mat;
-}
+import '@babylonjs/loaders';
+import { addIndustrialClutter, createIndustrialDetail, createHazardStripe } from '../VisualUtils';
+import { setupIndustrialPalette, PALETTE } from '../MaterialManager';
+import { setupAdvancedRendering } from '../RenderingUtils';
+import { createFlickeringLight } from '../effects/EnvironmentalHazards';
 
 export interface HubLandmarks {
   missionTerminal: Mesh;
   npcTerminal: Mesh;
+  shopTerminal: Mesh;
   deployPoint: Mesh;
 }
 
-export function buildHubScene(scene: Scene): HubLandmarks {
-  // Materials
-  const floorMat = makeMaterial(scene, 'hub_floor', FLOOR_COLOR);
-  const wallMat = makeMaterial(scene, 'hub_wall', WALL_COLOR);
-  const ceilingMat = makeMaterial(scene, 'hub_ceiling', CEILING_COLOR);
-  const terminalMat = makeMaterial(scene, 'hub_terminal', TERMINAL_COLOR, TERMINAL_EMISSIVE);
-  const deployMat = makeMaterial(scene, 'hub_deploy', DEPLOY_COLOR, DEPLOY_EMISSIVE);
-  const accentMat = makeMaterial(scene, 'hub_accent', ACCENT_COLOR, ACCENT_EMISSIVE);
+/**
+ * Builds the Hub station environment with high-fidelity industrial aesthetics.
+ * Uses centralized MaterialManager and RenderingUtils for performance and consistency.
+ */
+export async function buildHubScene(scene: Scene): Promise<HubLandmarks> {
+  const mats = setupIndustrialPalette(scene);
+  setupAdvancedRendering(scene, 'hub');
 
-  // Glow layer for emissive surfaces
-  const glow = new GlowLayer('glow', scene);
+  // 1. Environment Loading (Base placeholder or ship sections)
+  // We'll build the ship structure manually for precise 'Ebon Hawk' layout
+  const shipRoot = new TransformNode('ship_root', scene);
+
+  // --- Main Hold (Central Hub) ---
+  const mainHold = MeshBuilder.CreateCylinder('main_hold', { diameter: 10, height: 3.5, tessellation: 16 }, scene);
+  mainHold.position = new Vector3(0, 1.75, 0);
+  mainHold.material = mats.wall;
+  mainHold.checkCollisions = true;
+  mainHold.parent = shipRoot;
+
+  // --- Cockpit (Front) ---
+  const cockpit = MeshBuilder.CreateBox('cockpit', { width: 4, height: 3, depth: 5 }, scene);
+  cockpit.position = new Vector3(0, 1.5, -7.5);
+  cockpit.material = mats.wall;
+  cockpit.checkCollisions = true;
+  cockpit.parent = shipRoot;
+
+  // --- Engineering (Back) ---
+  const engineering = MeshBuilder.CreateBox('engineering', { width: 6, height: 4, depth: 6 }, scene);
+  engineering.position = new Vector3(0, 2, 8);
+  engineering.material = mats.wall;
+  engineering.checkCollisions = true;
+  engineering.parent = shipRoot;
+
+  // --- Quarters (Side) ---
+  const quarters = MeshBuilder.CreateBox('quarters', { width: 5, height: 3, depth: 4 }, scene);
+  quarters.position = new Vector3(-6.5, 1.5, 0);
+  quarters.material = mats.wall;
+  quarters.checkCollisions = true;
+  quarters.parent = shipRoot;
+
+  // --- Hallways ---
+  createHallway(scene, new Vector3(0, 1.5, -4), new Vector3(2, 2.5, 3), mats.floor); // To Cockpit
+  createHallway(scene, new Vector3(0, 1.5, 4), new Vector3(3, 3, 4), mats.floor);   // To Engine
+  createHallway(scene, new Vector3(-4, 1.5, 0), new Vector3(3, 2.5, 2), mats.floor); // To Quarters
+
+  // Atmospheric Details
+  createIndustrialDetail(scene, 'intercom', new Vector3(-1.1, 1.8, -4), new Vector3(0, Math.PI/2, 0));
+  createIndustrialDetail(scene, 'intercom', new Vector3(1.1, 1.8, 4), new Vector3(0, -Math.PI/2, 0));
+  
+  createIndustrialDetail(scene, 'console', new Vector3(1.5, 1.2, -9));  // Cockpit side console
+  createFlickeringLight(scene, new Vector3(0, 2.5, -8.5)); // Flickering cockpit light
+
+  // Hazard Stripes near transitions
+  createHazardStripe(scene, new Vector3(0, 3, -5.5), new Vector3(0, 0, 0)); // Entrance to Cockpit
+  createHazardStripe(scene, new Vector3(0, 3, 5.5), new Vector3(0, 0, 0));  // Entrance to Engineering
+
+  // 2. Global Aesthetics (Positional Audio)
+  const engineHum = new Sound('engine_hum', 'https://www.babylonjs-live.com/assets/sounds/fan.wav', scene, null, {
+    loop: true,
+    autoplay: true,
+    spatialSound: true,
+    maxDistance: 15,
+    volume: 0.3
+  });
+  engineHum.setPosition(new Vector3(0, 2, 8)); // Source at engineering
+  const glow = new GlowLayer('hub_glow', scene);
   glow.intensity = 0.6;
+  scene.clearColor.set(0.01, 0.01, 0.02, 1);
+  addIndustrialClutter(scene, scene);
 
-  // Floor
-  const floor = MeshBuilder.CreateGround('hub_floor', { width: 16, height: 12 }, scene);
-  floor.material = floorMat;
-  floor.checkCollisions = true;
+  // 3. Landmarks & Terminals (Repositioned for the ship layout)
+  const missionTerminal = createTerminal(scene, 'mission', new Vector3(0, 0.9, -9), mats.objective); // In Cockpit
+  const npcTerminal = createTerminal(scene, 'npc', new Vector3(-2, 0.9, 0), mats.accent);             // In Main Hold
+  const shopTerminal = createTerminal(scene, 'shop', new Vector3(2, 0.9, 0), mats.extract);            // In Main Hold
+  const deployPoint = createTerminal(scene, 'deploy', new Vector3(0, 1.5, 10), mats.extract, true);    // In Engineering/AirLock
 
-  // Ceiling
-  const ceiling = MeshBuilder.CreateGround('hub_ceiling', { width: 16, height: 12 }, scene);
-  ceiling.position.y = 3.5;
-  ceiling.rotation.x = Math.PI;
-  ceiling.material = ceilingMat;
+  // 5. Lighting
+  createHubLighting(scene);
 
-  // Walls
-  // Walls — using thin boxes so collision works from both sides
-  const wallDefs: Array<{ pos: Vector3; w: number; h: number; d: number }> = [
-    // Back wall
-    { pos: new Vector3(0, 1.75, -6), w: 16, h: 3.5, d: 0.2 },
-    // Front wall
-    { pos: new Vector3(0, 1.75, 6), w: 16, h: 3.5, d: 0.2 },
-    // Left wall
-    { pos: new Vector3(-8, 1.75, 0), w: 0.2, h: 3.5, d: 12 },
-    // Right wall
-    { pos: new Vector3(8, 1.75, 0), w: 0.2, h: 3.5, d: 12 },
-  ];
+  return { missionTerminal, npcTerminal, shopTerminal, deployPoint };
+}
 
-  wallDefs.forEach((w, i) => {
-    const wall = MeshBuilder.CreateBox(`hub_wall_${i}`, { width: w.w, height: w.h, depth: w.d }, scene);
-    wall.position = w.pos;
-    wall.material = wallMat;
-    wall.checkCollisions = true;
-  });
+function createHallway(scene: Scene, pos: Vector3, size: Vector3, mat: any): void {
+  const hall = MeshBuilder.CreateBox('hallway', { width: size.x, height: size.y, depth: size.z }, scene);
+  hall.position = pos;
+  hall.material = mat;
+}
 
-  // Interior column/pillar details
-  const pillarPositions = [
-    new Vector3(-4, 1.75, -3),
-    new Vector3(4, 1.75, -3),
-    new Vector3(-4, 1.75, 3),
-    new Vector3(4, 1.75, 3),
-  ];
-  pillarPositions.forEach((pos, i) => {
-    const pillar = MeshBuilder.CreateBox(`hub_pillar_${i}`, { width: 0.6, height: 3.5, depth: 0.6 }, scene);
-    pillar.position = pos;
-    pillar.material = wallMat;
-    pillar.checkCollisions = true;
-  });
+function createTerminal(scene: Scene, name: string, pos: Vector3, mat: any, isLarge = false): Mesh {
+  const t = MeshBuilder.CreateBox(`${name}_terminal`, { 
+    width: isLarge ? 2.0 : 1.0, 
+    height: isLarge ? 3.0 : 1.8, 
+    depth: 0.4 
+  }, scene);
+  t.position = pos;
+  t.material = mat;
+  t.checkCollisions = true;
 
-  // Warning stripe accents on pillars
-  pillarPositions.forEach((pos, i) => {
-    const stripe = MeshBuilder.CreateBox(`hub_stripe_${i}`, { width: 0.62, height: 0.15, depth: 0.62 }, scene);
-    stripe.position = new Vector3(pos.x, 1.0, pos.z);
-    stripe.material = accentMat;
-  });
+  if (!isLarge) {
+    const screen = MeshBuilder.CreatePlane(`${name}_screen`, { width: 0.7, height: 0.5 }, scene);
+    screen.position = pos.add(new Vector3(0, 0.4, 0.21));
+    screen.material = mat;
+  }
 
-  // === MISSION TERMINAL ===
-  // Located against the back wall, left of center
-  const missionTerminal = MeshBuilder.CreateBox('mission_terminal', { width: 1.2, height: 1.8, depth: 0.4 }, scene);
-  missionTerminal.position = new Vector3(-2, 0.9, -5.7);
-  missionTerminal.material = terminalMat;
-  missionTerminal.checkCollisions = true;
+  return t;
+}
 
-  // Screen on the terminal
-  const termScreen = MeshBuilder.CreatePlane('term_screen', { width: 0.9, height: 0.6 }, scene);
-  termScreen.position = new Vector3(-2, 1.3, -5.49);
-  termScreen.material = makeMaterial(scene, 'term_screen_mat', new Color3(0, 0, 0), new Color3(0.15, 0.7, 0.6));
+function createHubLighting(scene: Scene): void {
+  const light = new PointLight('hub_main_light', new Vector3(0, 4, 0), scene);
+  light.intensity = 0.8;
+  light.diffuse = PALETTE.ACCENT;
 
-  // === NPC TERMINAL ===
-  // Located against the back wall, right of center
-  const npcTerminal = MeshBuilder.CreateBox('npc_terminal', { width: 1.0, height: 2.0, depth: 0.4 }, scene);
-  npcTerminal.position = new Vector3(2, 1.0, -5.7);
-  npcTerminal.material = makeMaterial(scene, 'npc_mat', new Color3(0.05, 0.05, 0.08), new Color3(0.3, 0.15, 0.5));
-  npcTerminal.checkCollisions = true;
-
-  // NPC screen
-  const npcScreen = MeshBuilder.CreatePlane('npc_screen', { width: 0.7, height: 0.5 }, scene);
-  npcScreen.position = new Vector3(2, 1.4, -5.49);
-  npcScreen.material = makeMaterial(scene, 'npc_screen_mat', new Color3(0, 0, 0), new Color3(0.4, 0.2, 0.6));
-
-  // === DEPLOY POINT ===
-  // Located at the far end of the hub (front wall), centered — like an airlock
-  const deployPoint = MeshBuilder.CreateBox('deploy_point', { width: 2.0, height: 3.0, depth: 0.3 }, scene);
-  deployPoint.position = new Vector3(0, 1.5, 5.7);
-  deployPoint.material = deployMat;
-  deployPoint.checkCollisions = true;
-
-  // Deploy frame accents
-  const deployFrameLeft = MeshBuilder.CreateBox('deploy_frame_l', { width: 0.15, height: 3.2, depth: 0.35 }, scene);
-  deployFrameLeft.position = new Vector3(-1.1, 1.5, 5.7);
-  deployFrameLeft.material = accentMat;
-  deployFrameLeft.checkCollisions = true;
-
-  const deployFrameRight = MeshBuilder.CreateBox('deploy_frame_r', { width: 0.15, height: 3.2, depth: 0.35 }, scene);
-  deployFrameRight.position = new Vector3(1.1, 1.5, 5.7);
-  deployFrameRight.material = accentMat;
-  deployFrameRight.checkCollisions = true;
-
-  // === LIGHTING ===
-  // Dim ambient
-  const ambient = new HemisphericLight('hub_ambient', new Vector3(0, 1, 0), scene);
-  ambient.intensity = 0.15;
-  ambient.diffuse = new Color3(0.6, 0.7, 0.8);
-  ambient.groundColor = new Color3(0.05, 0.05, 0.08);
-
-  // Overhead point lights
-  const overheadPositions = [
-    new Vector3(-3, 3.2, -2),
-    new Vector3(3, 3.2, -2),
-    new Vector3(0, 3.2, 2),
-  ];
-  overheadPositions.forEach((pos, i) => {
-    const light = new PointLight(`hub_light_${i}`, pos, scene);
-    light.intensity = 0.6;
-    light.diffuse = new Color3(0.8, 0.85, 1.0);
-    light.range = 10;
-  });
-
-  // Terminal spot
-  const termSpot = new SpotLight(
-    'term_spot',
-    new Vector3(-2, 3, -5),
-    new Vector3(0, -1, -0.3),
-    Math.PI / 4,
-    2,
-    scene
-  );
-  termSpot.intensity = 0.5;
-  termSpot.diffuse = new Color3(0.3, 0.8, 0.7);
-
-  // Deploy glow
-  const deploySpot = new SpotLight(
-    'deploy_spot',
-    new Vector3(0, 3, 5),
-    new Vector3(0, -1, 0.3),
-    Math.PI / 3,
-    2,
-    scene
-  );
-  deploySpot.intensity = 0.5;
-  deploySpot.diffuse = new Color3(0.8, 0.7, 0.3);
-
-  // Background color
-  scene.clearColor.set(0.02, 0.03, 0.05, 1);
-
-  // Fog for mood
-  scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.015;
-  scene.fogColor = new Color3(0.02, 0.03, 0.05);
-
-  return { missionTerminal, npcTerminal, deployPoint };
+  const spot = new SpotLight('term_spot', new Vector3(-2, 3, -5), new Vector3(0, -1, 0.2), Math.PI / 3, 2, scene);
+  spot.intensity = 0.5;
+  spot.diffuse = PALETTE.OBJECTIVE;
 }

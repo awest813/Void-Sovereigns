@@ -32,6 +32,28 @@ export const MISSIONS: MissionDefinition[] = [
     threat: 'Moderate — unstable structure, residual electrical discharge',
     reward: '750 CR + Station Commendation',
   },
+  {
+    id: 'sabotage-relay',
+    title: 'Sabotage — Communications Relay',
+    briefing:
+      'The Sovereign remnants are using a decommissioned relay to coordinate their movements. Infiltrate the relay station and disable the primary transmitter core. Expect automated security.',
+    objectiveName: 'Transmitter Core',
+    objectiveDescription: 'Disable the core relay transmitter.',
+    location: 'Relay Station — Outpost X-Ray',
+    threat: 'High — Active security drones, automated turrets',
+    reward: '1500 CR + Security Clearance',
+  },
+  {
+    id: 'research-samples',
+    title: 'Recovery — Bio-Research Samples',
+    briefing:
+      'A bio-research facility was abandoned after a hull breach. Several experimental samples remain in the storage vault. Retrieve the cooling unit containing the samples and evacuate.',
+    objectiveName: 'Bio-Coolant Unit',
+    objectiveDescription: 'Experimental samples in a bio-coolant container.',
+    location: 'Research Facility — Silent Sky',
+    threat: 'Extreme — Dangerous biohazards, structural instability',
+    reward: '3000 CR + Research Stipend',
+  },
 ];
 
 export function getMission(id: string): MissionDefinition | undefined {

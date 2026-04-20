@@ -16,9 +16,12 @@ export interface FirstPersonControllerOptions {
 
 export class FirstPersonController {
   readonly camera: UniversalCamera;
-  private isSprinting = false;
   private baseSpeed: number;
   private sprintMultiplier: number;
+  private verticalVelocity = 0;
+  private groundLevel = 1.7;
+  private gravity = -0.005; // Per-frame floaty gravity
+  private jumpPower = 0.15;
 
   constructor(scene: Scene, canvas: HTMLCanvasElement, options: FirstPersonControllerOptions = {}) {
     this.baseSpeed = options.speed ?? 0.5;
@@ -45,21 +48,36 @@ export class FirstPersonController {
     this.camera.ellipsoid = options.ellipsoid ?? new Vector3(0.4, 0.85, 0.4);
     this.camera.ellipsoidOffset = new Vector3(0, 0.85, 0);
 
-    scene.gravity = options.gravity ?? new Vector3(0, -0.4, 0);
+    scene.gravity = options.gravity ?? new Vector3(0, -0.2, 0); // Lo-grav Halo feel
 
     this.camera.attachControl(canvas, true);
 
-    // Sprint handling
+    // Jump & Sprint handling
     scene.onKeyboardObservable.add((info) => {
       if (info.event.code === 'ShiftLeft' || info.event.code === 'ShiftRight') {
         if (info.type === KeyboardEventTypes.KEYDOWN) {
-          this.isSprinting = true;
           this.camera.speed = this.baseSpeed * this.sprintMultiplier;
         } else if (info.type === KeyboardEventTypes.KEYUP) {
-          this.isSprinting = false;
           this.camera.speed = this.baseSpeed;
         }
       }
+      if (info.event.code === 'Space' && info.type === KeyboardEventTypes.KEYDOWN) {
+         if (this.camera.position.y <= this.groundLevel + 0.1) {
+            this.verticalVelocity = this.jumpPower;
+         }
+      }
+    });
+
+    // Custom Physics Mock for floaty jump
+    scene.onBeforeRenderObservable.add(() => {
+        if (this.camera.position.y > this.groundLevel || this.verticalVelocity > 0) {
+            this.camera.position.y += this.verticalVelocity;
+            this.verticalVelocity += this.gravity;
+            if (this.camera.position.y < this.groundLevel) {
+                this.camera.position.y = this.groundLevel;
+                this.verticalVelocity = 0;
+            }
+        }
     });
 
     // Pointer lock
