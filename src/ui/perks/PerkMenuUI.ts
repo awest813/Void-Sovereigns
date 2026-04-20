@@ -1,15 +1,11 @@
 import { gameState } from '../../game/state/GameState';
+import { dataManager } from '../../game/state/DataManager';
 
 export class PerkMenuUI {
   private container: HTMLDivElement;
   private isVisible = false;
 
-  private perks = [
-    { id: 'TITAN SHIELDS', desc: 'Double maximum shield capacity (200 Units)', icon: '🛡️' },
-    { id: 'MARATHONER', desc: '+25% Base Movement Speed', icon: '🏃' },
-    { id: 'OXY-EFFICIENCY', desc: '-40% Oxygen Consumption Rate', icon: '🫁' },
-    { id: 'DEVASTATOR MELEE', desc: 'Double Melee Bash Damage (100 Damage)', icon: '👊' },
-  ];
+  private perks = dataManager.getPerks();
 
   constructor() {
     this.container = document.createElement('div');

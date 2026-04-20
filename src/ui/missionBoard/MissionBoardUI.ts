@@ -1,5 +1,5 @@
-import { MISSIONS, Mission } from '../../content/missions/missionData';
 import { gameState } from '../../game/state/GameState';
+import { dataManager } from '../../game/state/DataManager';
 
 export class MissionBoardUI {
   private container: HTMLDivElement;
@@ -115,7 +115,7 @@ export class MissionBoardUI {
   }
 
   private renderMissionList(): void {
-    const missions = MISSIONS.filter(m => m.biome === this.selectedPlanet);
+    const missions = dataManager.getMissions().filter(m => m.biome === this.selectedPlanet);
     this.container.innerHTML = `
       <div style="height: 70px; background: rgba(255, 255, 255, 0.03); display: flex; align-items: center; padding: 0 40px; border-bottom: 1px solid var(--border-cyan); justify-content: space-between;">
         <span style="text-transform: uppercase; letter-spacing: 5px; color: var(--neon-orange); font-weight: 600;">Sector Contracts: ${this.selectedPlanet?.toUpperCase()}</span>

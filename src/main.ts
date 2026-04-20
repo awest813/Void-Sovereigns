@@ -19,7 +19,7 @@ import { OxygenSystem } from './game/state/OxygenSystem';
 import { ExtractionSystem } from './game/state/ExtractionSystem';
 import { InventoryUI } from './ui/inventory/InventoryUI';
 import { transitionMission } from './game/state/MissionState';
-import { MISSIONS, getMission } from './content/missions/missionData';
+import { dataManager } from './game/state/DataManager';
 import { WeaponSystem } from './game/combat/WeaponSystem';
 import { HealthSystem } from './game/state/HealthSystem';
 import { Turret } from './game/entities/Turret';
@@ -158,13 +158,13 @@ let inventoryUI: InventoryUI | null = null;
     shopUI = new ShopUI();
     perkMenuUI = new PerkMenuUI();
     decryptionUI = new DecryptionUI();
-    missionBoardUI.setActionHandler((action) => {
+    missionBoardUI.setActionHandler((action, missionId) => {
       if (action === 'close') {
         missionBoardUI?.hide();
         return;
       }
-      if (action === 'accept') {
-        const mission = getNextMission();
+      if (action === 'accept' && missionId) {
+        const mission = dataManager.getMission(missionId);
         if (!mission) return;
         gameState.update({
           activeMissionId: mission.id,
@@ -172,18 +172,8 @@ let inventoryUI: InventoryUI | null = null;
         });
         refreshHudStatus();
         missionBoardUI?.hide();
-        hud?.showMessage(`Mission accepted: ${mission.title}. Head to the airlock to deploy.`, 4000);
+        hud?.showMessage(`Mission accepted: ${mission.title}. Head to airlock.`, 4000);
         return;
-      }
-      if (action === 'deploy') {
-        const s = gameState.get();
-        if (s.missionStatus === 'accepted' && s.activeMissionId) {
-          missionBoardUI?.hide();
-          gameState.update({
-            missionStatus: transitionMission(s.missionStatus, 'deployed'),
-          });
-          deployToMission();
-        }
       }
     });
 
@@ -241,7 +231,7 @@ let inventoryUI: InventoryUI | null = null;
       }
     });
 
-    const activeMission = getMission(gameState.get().activeMissionId ?? '');
+    const activeMission = dataManager.getMission(gameState.get().activeMissionId ?? '');
     const landmarks = await buildMissionZone(scene, interactionSystem!, hud!, player.camera, health, activeMission?.biome ?? 'industrial');
     const weaponSystem = new WeaponSystem(scene, player);
     new OxygenSystem(scene, hud!);
@@ -270,7 +260,7 @@ let inventoryUI: InventoryUI | null = null;
     new Turret(scene, new Vector3(-4, 0, -6), player.camera, health, hud!);
     new Turret(scene, new Vector3(4, 0, -6), player.camera, health, hud!);
 
-    const activeMission = getMission(gameState.get().activeMissionId ?? '');
+    const activeMission = dataManager.getMission(gameState.get().activeMissionId ?? '');
     hud.showMessage(
       `Objective: Locate and retrieve the ${activeMission?.objectiveName ?? 'objective'}.`,
       4000
@@ -350,17 +340,13 @@ let inventoryUI: InventoryUI | null = null;
   // SCENE TRANSITIONS
   // =====================
   async function deployToMission() {
-    await loadingUI?.show(1000);
     disposeUI();
     await sceneManager.switchTo('mission');
-    await loadingUI?.hide();
   }
 
   async function returnToHub() {
-    await loadingUI?.show(1000);
     disposeUI();
     await sceneManager.switchTo('hub');
-    await loadingUI?.hide();
   }
 
   function disposeUI() {
@@ -381,7 +367,7 @@ let inventoryUI: InventoryUI | null = null;
   // =====================
   function getNextMission() {
     const s = gameState.get();
-    return MISSIONS.find(m => !s.completedMissions.includes(m.id)) ?? null;
+    return dataManager.getMissions().find(m => !s.completedMissions.includes(m.id)) ?? null;
   }
 
   function openMissionBoard() {
@@ -401,7 +387,7 @@ let inventoryUI: InventoryUI | null = null;
   function refreshHudStatus() {
     const s = gameState.get();
     if (s.activeMissionId && s.missionStatus !== 'none' && s.missionStatus !== 'returnedToHub') {
-      const mission = getMission(s.activeMissionId);
+      const mission = dataManager.getMission(s.activeMissionId);
       const label = statusLabel(s.missionStatus);
       hud?.setMissionStatus(mission?.title ?? s.activeMissionId, label);
     } else {
@@ -425,7 +411,7 @@ let inventoryUI: InventoryUI | null = null;
   // DEBRIEF
   // =====================
   function showDebrief(missionId: string) {
-    const mission = getMission(missionId);
+    const mission = dataManager.getMission(missionId);
     if (!mission) return;
 
     debriefUI = new DebriefUI();
@@ -455,13 +441,12 @@ let inventoryUI: InventoryUI | null = null;
   // =====================
   mainMenuUI = new MainMenuUI();
   loadingUI = new LoadingUI();
+  sceneManager.setLoadingUI(loadingUI);
   
   // Show Main Menu first
   mainMenuUI.show(async () => {
-    await loadingUI?.show(800);
     const startScene = gameState.get().currentScene;
     await sceneManager.switchTo(startScene);
-    await loadingUI?.hide();
   });
 }
 
