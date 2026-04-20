@@ -1,182 +1,106 @@
-import {
-  AdvancedDynamicTexture,
-  TextBlock,
-  Button,
-  StackPanel,
-  Rectangle,
-  Control,
-} from '@babylonjs/gui';
 import { gameState } from '../../game/state/GameState';
 
 export class ShopUI {
-  private texture: AdvancedDynamicTexture;
-  private container: Rectangle;
-  private creditLabel: TextBlock | null = null;
+  private container: HTMLDivElement;
   private isVisible = false;
 
   constructor() {
-    this.texture = AdvancedDynamicTexture.CreateFullscreenUI('shopUI');
-    this.container = new Rectangle('shopContainer');
-    this.container.width = '700px';
-    this.container.height = '500px';
-    this.container.cornerRadius = 2;
-    this.container.color = '#ffcc44';
-    this.container.thickness = 1;
-    this.container.background = '#0a0e14cc';
-    this.container.isVisible = false;
-    this.texture.addControl(this.container);
-
-    this.buildUI();
+    this.container = document.createElement('div');
+    this.container.id = 'shop-ui';
+    this.container.className = 'glass-panel';
+    this.container.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 600px;
+      display: none;
+      z-index: 1000;
+      padding: 0;
+      overflow: hidden;
+    `;
+    document.body.appendChild(this.container);
   }
 
-  private buildUI(): void {
-    const panel = new StackPanel('shopPanel');
-    panel.width = '90%';
-    this.container.addControl(panel);
-
-    const header = new TextBlock('shopHeader', '— SOVEREIGN REQUISITIONS —');
-    header.height = '40px';
-    header.color = '#ffcc44';
-    header.fontSize = 20;
-    header.fontFamily = '"Outfit", sans-serif';
-    panel.addControl(header);
-
-    this.creditLabel = new TextBlock('creditLabel', `CREDITS: ${gameState.get().credits}`);
-    this.creditLabel.height = '30px';
-    this.creditLabel.color = '#ffffff';
-    this.creditLabel.fontSize = 14;
-    this.creditLabel.fontFamily = '"Outfit", sans-serif';
-    panel.addControl(this.creditLabel);
-
-    const spacer = new Rectangle('spacer');
-    spacer.height = '20px';
-    spacer.thickness = 0;
-    panel.addControl(spacer);
-
-    // Items
-    this.addItem(panel, 'Calibrated Reciever', 'Increase weapon damage by 5', 250, () => {
-       const s = gameState.get();
-       if (s.credits >= 250) {
-         gameState.update({ 
-           credits: s.credits - 250,
-           equipment: { ...s.equipment, weaponDamage: s.equipment.weaponDamage + 5 }
-         });
-         this.refresh();
-       }
-    });
-
-    this.addItem(panel, 'Reinforced Plating', 'Restore armor to 100%', 150, () => {
-       const s = gameState.get();
-       if (s.credits >= 150) {
-         gameState.update({ 
-           credits: s.credits - 150,
-           equipment: { ...s.equipment, armorDurability: 100 }
-         });
-         this.refresh();
-       }
-    });
-
-    this.addItem(panel, 'Sovereign Shotgun', 'High damage scatter shot', 800, () => {
-       const s = gameState.get();
-       if (s.credits >= 800) {
-         gameState.update({ 
-           credits: s.credits - 800,
-           equippedWeapon: 'shotgun'
-         });
-         this.refresh();
-       }
-    });
-
-    this.addItem(panel, 'Rapid-Fire SMG', 'Lightweight high fire-rate', 1200, () => {
-       const s = gameState.get();
-       if (s.credits >= 1200) {
-         gameState.update({ 
-           credits: s.credits - 1200,
-           equippedWeapon: 'smg'
-         });
-         this.refresh();
-       }
-    });
-
-    this.addItem(panel, 'High-Cap Oxygen', 'Increase max oxygen to 200', 500, () => {
-       const s = gameState.get();
-       if (s.credits >= 500) {
-         gameState.update({ 
-           credits: s.credits - 500,
-           maxOxygen: 200
-         });
-         this.refresh();
-       }
-    });
-
-    const closeBtn = Button.CreateSimpleButton('closeShop', 'CLOSE TERMINAL');
-    closeBtn.width = '200px';
-    closeBtn.height = '40px';
-    closeBtn.color = '#ffffff';
-    closeBtn.background = '#331111';
-    closeBtn.top = '20px';
-    closeBtn.onPointerUpObservable.add(() => this.hide());
-    panel.addControl(closeBtn);
-  }
-
-  private addItem(parent: StackPanel, name: string, desc: string, cost: number, onBuy: () => void): void {
-    const itemRect = new Rectangle(`item_${name}`);
-    itemRect.height = '80px';
-    itemRect.thickness = 1;
-    itemRect.color = '#ffffff22';
-    itemRect.background = '#ffffff05';
-    itemRect.paddingBottom = '10px';
-    parent.addControl(itemRect);
-
-    const nameLabel = new TextBlock('n', name);
-    nameLabel.color = '#ffffff';
-    nameLabel.fontSize = 16;
-    nameLabel.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    nameLabel.left = '10px';
-    nameLabel.top = '-15px';
-    itemRect.addControl(nameLabel);
-
-    const descLabel = new TextBlock('d', desc);
-    descLabel.color = '#888888';
-    descLabel.fontSize = 12;
-    descLabel.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    descLabel.left = '10px';
-    descLabel.top = '10px';
-    itemRect.addControl(descLabel);
-
-    const buyBtn = Button.CreateSimpleButton('b', `${cost}c`);
-    buyBtn.width = '80px';
-    buyBtn.height = '30px';
-    buyBtn.color = '#000000';
-    buyBtn.background = '#ffcc44';
-    buyBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    buyBtn.left = '-10px';
-    buyBtn.onPointerUpObservable.add(onBuy);
-    itemRect.addControl(buyBtn);
-  }
-
-  private refresh(): void {
-    if (this.creditLabel) {
-      this.creditLabel.text = `CREDITS: ${gameState.get().credits}`;
-    }
-  }
-
-  show(): void {
-    this.refresh();
-    this.container.isVisible = true;
+  public show(): void {
     this.isVisible = true;
+    this.container.style.display = 'block';
+    this.render();
   }
 
-  hide(): void {
-    this.container.isVisible = false;
+  public hide(): void {
     this.isVisible = false;
+    this.container.style.display = 'none';
   }
 
-  isOpen(): boolean {
+  public isOpen(): boolean {
     return this.isVisible;
   }
 
-  dispose(): void {
-    this.texture.dispose();
+  private render(): void {
+    const s = gameState.get();
+    
+    this.container.innerHTML = `
+      <div style="height: 70px; background: rgba(255, 255, 255, 0.03); display: flex; align-items: center; padding: 0 30px; border-bottom: 1px solid var(--border-cyan); justify-content: space-between;">
+        <span style="text-transform: uppercase; letter-spacing: 5px; font-weight: 300;">Requisitions Terminal</span>
+        <div style="display: flex; align-items: center; gap: 15px;">
+           <span style="font-size: 10px; opacity: 0.5;">AVAIL_CAPITAL</span>
+           <span style="color: var(--neon-orange); font-size: 20px;">${s.credits} CR</span>
+        </div>
+      </div>
+
+      <div style="padding: 30px; height: 530px; overflow-y: auto;">
+        <!-- Categories or Grid -->
+        <h3 style="font-size: 10px; letter-spacing: 2px; color: var(--neon-cyan); opacity: 0.5; margin-bottom: 15px;">HARDWARE UPGRADES</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          ${this.renderItem('Calibrated Receiver', '+5 Base Weapon Damage', 250, 'dmg')}
+          ${this.renderItem('Reinforced Plating', 'Restore Neural Buffs', 150, 'armor')}
+          ${this.renderItem('Sovereign Shotgun', 'CQC Heavy Scatter Gear', 800, 'shotgun')}
+          ${this.renderItem('Rapid-Fire SMG', 'Lightweight Burst Gear', 1200, 'smg')}
+          ${this.renderItem('High-Cap Oxygen', 'Extended EVA Duration', 500, 'oxy')}
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center;">
+            <button class="sci-fi-btn" style="width: 200px; border-color: rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.5);" onclick="window.closeShop()">Exit Console</button>
+        </div>
+      </div>
+    `;
+
+    (window as any).closeShop = () => this.hide();
+    (window as any).buyItem = (id: string, cost: number) => this.handlePurchase(id, cost);
+  }
+
+  private renderItem(name: string, desc: string, cost: number, id: string): string {
+    const canAfford = gameState.get().credits >= cost;
+    return `
+      <div style="padding: 20px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-cyan); display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: space-between;">
+           <span style="font-weight: 600; font-size: 14px;">${name}</span>
+           <span style="color: var(--neon-orange); font-size: 12px;">${cost}CR</span>
+        </div>
+        <div style="font-size: 11px; opacity: 0.5; line-height: 1.4;">${desc}</div>
+        <button class="sci-fi-btn" style="font-size: 10px; padding: 8px; ${!canAfford ? 'opacity: 0.3; cursor: not-allowed;' : ''}" onclick="${canAfford ? `buyItem('${id}', ${cost})` : ''}">
+           Purchase
+        </button>
+      </div>
+    `;
+  }
+
+  private handlePurchase(id: string, cost: number) {
+    const s = gameState.get();
+    if (s.credits < cost) return;
+
+    if (id === 'dmg') gameState.update({ equipment: { ...s.equipment, weaponDamage: s.equipment.weaponDamage + 5 } });
+    if (id === 'shotgun') gameState.update({ equippedWeapon: 'shotgun' });
+    if (id === 'smg') gameState.update({ equippedWeapon: 'smg' });
+    if (id === 'oxy') gameState.update({ maxOxygen: 200 });
+    
+    gameState.update({ credits: s.credits - cost });
+    this.render();
+  }
+
+  public dispose(): void {
+    this.container.remove();
   }
 }

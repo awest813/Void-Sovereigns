@@ -8,8 +8,12 @@ import { HUD } from './ui/hud/HUD';
 import { MissionBoardUI } from './ui/missionBoard/MissionBoardUI';
 import { DebriefUI } from './ui/debrief/DebriefUI';
 import { ShopUI } from './ui/shop/ShopUI';
+import { PerkMenuUI } from './ui/perks/PerkMenuUI';
+import { DecryptionUI } from './ui/DecryptionUI';
 import { buildHubScene } from './game/hub/HubScene';
 import { buildMissionZone } from './game/missions/MissionZone';
+import { MainMenuUI } from './ui/menu/MainMenuUI';
+import { LoadingUI } from './ui/LoadingUI';
 import { gameState, gameStateStore } from './game/state/GameState';
 import { OxygenSystem } from './game/state/OxygenSystem';
 import { ExtractionSystem } from './game/state/ExtractionSystem';
@@ -30,7 +34,10 @@ async function main() {
 let inventoryUI: InventoryUI | null = null;
   let missionBoardUI: MissionBoardUI | null = null;
   let debriefUI: DebriefUI | null = null;
-  let shopUI: ShopUI | null = null;
+  let perkMenuUI: PerkMenuUI | null = null;
+  let decryptionUI: DecryptionUI | null = null;
+  let mainMenuUI: MainMenuUI | null = null;
+  let loadingUI: LoadingUI | null = null;
   let interactionSystem: InteractionSystem | null = null;
 
   // Try to load saved state
@@ -54,6 +61,9 @@ let inventoryUI: InventoryUI | null = null;
     initGlobalUI();
     const scene = engine.createScene();
     const landmarks = await buildHubScene(scene);
+
+    gameState.update({ currentScene: 'hub', version: '0.4.1' });
+    gameState.save();
 
     const player = new FirstPersonController(scene, engine.canvas, {
       position: new Vector3(0, 1.7, 0),
@@ -123,9 +133,31 @@ let inventoryUI: InventoryUI | null = null;
     };
     interactionSystem.register(shopTerminalInteractable);
 
+    // --- Perk Terminal ---
+    const perkTerminalInteractable: Interactable = {
+      mesh: landmarks.perkTerminal,
+      promptText: 'Access Neural Modulation Interface',
+      onInteract: () => {
+        perkMenuUI?.toggle();
+      },
+    };
+    interactionSystem.register(perkTerminalInteractable);
+
+    // --- Decryption Terminal ---
+    const decryptionTerminalInteractable: Interactable = {
+      mesh: landmarks.decryptionTerminal,
+      promptText: 'Access Neural Decryption Station',
+      onInteract: () => {
+        decryptionUI?.show();
+      },
+    };
+    interactionSystem.register(decryptionTerminalInteractable);
+
     // --- Mission Board UI ---
-    missionBoardUI = new MissionBoardUI();
+     missionBoardUI = new MissionBoardUI();
     shopUI = new ShopUI();
+    perkMenuUI = new PerkMenuUI();
+    decryptionUI = new DecryptionUI();
     missionBoardUI.setActionHandler((action) => {
       if (action === 'close') {
         missionBoardUI?.hide();
@@ -162,6 +194,15 @@ let inventoryUI: InventoryUI | null = null;
 
     // Save state on return
     gameState.update({ currentScene: 'hub' });
+    // Global Hub Keys
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (gameState.get().currentScene === 'hub') {
+          perkMenuUI?.toggle();
+        }
+      }
+    });
+
     gameState.save();
 
     return scene;
@@ -200,7 +241,8 @@ let inventoryUI: InventoryUI | null = null;
       }
     });
 
-    const landmarks = buildMissionZone(scene, interactionSystem!, hud!, player.camera, health);
+    const activeMission = getMission(gameState.get().activeMissionId ?? '');
+    const landmarks = await buildMissionZone(scene, interactionSystem!, hud!, player.camera, health, activeMission?.biome ?? 'industrial');
     const weaponSystem = new WeaponSystem(scene, player);
     new OxygenSystem(scene, hud!);
     new ExtractionSystem(scene, hud!, landmarks.extractionPoint, health);
@@ -224,9 +266,9 @@ let inventoryUI: InventoryUI | null = null;
     // Sync mission status indicator
     refreshHudStatus();
 
-    // Spawn Turrets
-    new Turret(scene, new Vector3(-4, 0, -6), player.camera, health);
-    new Turret(scene, new Vector3(4, 0, -6), player.camera, health);
+     // Spawn Turrets
+    new Turret(scene, new Vector3(-4, 0, -6), player.camera, health, hud!);
+    new Turret(scene, new Vector3(4, 0, -6), player.camera, health, hud!);
 
     const activeMission = getMission(gameState.get().activeMissionId ?? '');
     hud.showMessage(
@@ -244,6 +286,9 @@ let inventoryUI: InventoryUI | null = null;
           gameState.update({
             missionStatus: transitionMission(ms, 'objectiveComplete'),
           });
+          
+          if (gameState.addXP(500)) hud?.showLevelUp();
+          
           // Hide the objective item
           landmarks.objectiveItem.setEnabled(false);
           interactionSystem?.unregister(objectiveInteractable);
@@ -263,6 +308,18 @@ let inventoryUI: InventoryUI | null = null;
       },
     };
     interactionSystem.register(objectiveInteractable);
+
+    // Halo-style shield and RPG XP updates
+    scene.onBeforeRenderObservable.add(() => {
+      const delta = scene.getEngine().getDeltaTime() * 0.001;
+      health.update(delta);
+      hud?.updateShield(health.getShieldPercent());
+      
+      const s = gameState.get();
+      const currentXP = s.xp;
+      const targetXP = s.level * 1000;
+      hud?.updateXP(currentXP / targetXP, s.level);
+    });
 
     // --- Extraction Point ---
     const extractionInteractable: Interactable = {
@@ -293,13 +350,17 @@ let inventoryUI: InventoryUI | null = null;
   // SCENE TRANSITIONS
   // =====================
   async function deployToMission() {
+    await loadingUI?.show(1000);
     disposeUI();
     await sceneManager.switchTo('mission');
+    await loadingUI?.hide();
   }
 
   async function returnToHub() {
+    await loadingUI?.show(1000);
     disposeUI();
     await sceneManager.switchTo('hub');
+    await loadingUI?.hide();
   }
 
   function disposeUI() {
@@ -381,6 +442,7 @@ let inventoryUI: InventoryUI | null = null;
         activeMissionId: null,
       });
       gameState.setFlag('firstMissionComplete', true);
+      gameState.decaySaturations();
       gameState.save();
       refreshHudStatus();
       debriefUI?.hide();
@@ -389,10 +451,18 @@ let inventoryUI: InventoryUI | null = null;
   }
 
   // =====================
-  // BOOT
+  // BOOT SEQUENCE
   // =====================
-  const startScene = gameState.get().currentScene;
-  await sceneManager.switchTo(startScene);
+  mainMenuUI = new MainMenuUI();
+  loadingUI = new LoadingUI();
+  
+  // Show Main Menu first
+  mainMenuUI.show(async () => {
+    await loadingUI?.show(800);
+    const startScene = gameState.get().currentScene;
+    await sceneManager.switchTo(startScene);
+    await loadingUI?.hide();
+  });
 }
 
 main().catch(console.error);

@@ -23,7 +23,10 @@ export class OxygenSystem {
     if (s.currentScene !== 'mission' || s.missionStatus === 'failed') return;
 
     const delta = this.scene.getEngine().getDeltaTime() * 0.001;
-    const newOxygen = Math.max(0, s.oxygen - (this.rate * delta));
+    let actualRate = this.rate;
+    if (gameState.hasPerk('OXY-EFFICIENCY')) actualRate *= 0.6; // 40% reduction
+    
+    const newOxygen = Math.max(0, s.oxygen - (actualRate * delta));
     
     gameState.update({ oxygen: newOxygen });
 

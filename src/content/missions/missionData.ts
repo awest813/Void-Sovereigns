@@ -7,6 +7,7 @@ export interface MissionDefinition {
   location: string;
   threat: string;
   reward: string;
+  biome: 'industrial' | 'arctic' | 'depot';
 }
 
 export const MISSIONS: MissionDefinition[] = [
@@ -20,6 +21,7 @@ export const MISSIONS: MissionDefinition[] = [
     location: 'Derelict Freighter — Sector 7G',
     threat: 'Low — environmental hazards, no confirmed hostiles',
     reward: '500 CR + Salvage Rights',
+    biome: 'industrial',
   },
   {
     id: 'power-cell-deck4',
@@ -31,6 +33,7 @@ export const MISSIONS: MissionDefinition[] = [
     location: 'Industrial Block — Deck 4',
     threat: 'Moderate — unstable structure, residual electrical discharge',
     reward: '750 CR + Station Commendation',
+    biome: 'depot',
   },
   {
     id: 'sabotage-relay',
@@ -42,6 +45,7 @@ export const MISSIONS: MissionDefinition[] = [
     location: 'Relay Station — Outpost X-Ray',
     threat: 'High — Active security drones, automated turrets',
     reward: '1500 CR + Security Clearance',
+    biome: 'industrial',
   },
   {
     id: 'research-samples',
@@ -53,6 +57,7 @@ export const MISSIONS: MissionDefinition[] = [
     location: 'Research Facility — Silent Sky',
     threat: 'Extreme — Dangerous biohazards, structural instability',
     reward: '3000 CR + Research Stipend',
+    biome: 'arctic',
   },
 ];
 

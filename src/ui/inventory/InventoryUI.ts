@@ -1,121 +1,103 @@
-import { AdvancedDynamicTexture, Control, Rectangle, TextBlock, ScrollViewer, StackPanel } from '@babylonjs/gui';
 import { gameState } from '../../game/state/GameState';
 
-/**
- * Implementation of the Phase 2.1 Backpack System.
- * Provides a dedicated UI overlay to view and manage collected loot.
- */
 export class InventoryUI {
-  private texture: AdvancedDynamicTexture;
-  private container: Rectangle;
-  private listRoot: StackPanel;
+  private container: HTMLDivElement;
   private isOpen = false;
 
   constructor() {
-    this.texture = AdvancedDynamicTexture.CreateFullscreenUI('inventory_ui');
-    
-    // Main Container (Glassmorphic)
-    this.container = new Rectangle('inv_container');
-    this.container.width = '400px';
-    this.container.height = '500px';
-    this.container.background = '#1a1e24ee';
-    this.container.color = '#44ccff';
-    this.container.thickness = 2;
-    this.container.cornerRadius = 8;
-    this.container.isVisible = false;
-    this.texture.addControl(this.container);
+    this.container = document.createElement('div');
+    this.container.id = 'inventory-ui';
+    this.container.className = 'glass-panel';
+    this.container.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: -450px;
+      width: 400px;
+      height: calc(100% - 40px);
+      transition: right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    `;
+    document.body.appendChild(this.container);
 
-    const title = new TextBlock('inv_title', 'CARGO MANIFEST / BACKPACK');
-    title.color = '#ffffff';
-    title.fontSize = 18;
-    title.fontFamily = '"Outfit", sans-serif';
-    title.height = '40px';
-    title.paddingTop = '10px';
-    title.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.container.addControl(title);
-
-    const scroll = new ScrollViewer('inv_scroll');
-    scroll.width = '360px';
-    scroll.height = '380px';
-    scroll.top = '20px';
-    scroll.thickness = 0;
-    this.container.addControl(scroll);
-
-    this.listRoot = new StackPanel('inv_list');
-    this.listRoot.width = '100%';
-    scroll.addControl(this.listRoot);
-
-    const footer = new TextBlock('inv_footer', 'PRESS [TAB] TO CLOSE');
-    footer.color = '#ffffff44';
-    footer.fontSize = 12;
-    footer.height = '30px';
-    footer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    this.container.addControl(footer);
-
-    // Keyboard listener
     window.addEventListener('keydown', (e) => {
       if (e.key.toLowerCase() === 'tab') {
         e.preventDefault();
         this.toggle();
       }
     });
+
+    (window as any).sellItem = (index: number) => this.handleSell(index);
   }
 
   public toggle(): void {
     this.isOpen = !this.isOpen;
-    this.container.isVisible = this.isOpen;
+    this.container.style.right = this.isOpen ? '20px' : '-450px';
     
     if (this.isOpen) {
-      this.refresh();
-      // Unlock pointer when inventory is open
+      this.render();
       document.exitPointerLock?.();
-    } else {
-      // Return focus to game if needed
     }
   }
 
-  public refresh(): void {
-    this.listRoot.clearControls();
-    const items = gameState.get().inventory;
+  private render(): void {
+    const s = gameState.get();
+    const items = s.inventory;
+    const isHub = s.currentScene === 'hub';
 
-    if (items.length === 0) {
-      const empty = new TextBlock('inv_empty', 'NO CARGO DETECTED');
-      empty.color = '#666';
-      empty.height = '40px';
-      this.listRoot.addControl(empty);
-      return;
+    this.container.innerHTML = `
+      <div style="padding: 30px; border-bottom: 1px solid var(--border-cyan); display: flex; align-items: center; justify-content: space-between;">
+        <span style="letter-spacing: 5px; font-weight: 300;">Cargo Manifest</span>
+        <div class="status-badge" style="${isHub ? 'border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0,255,255,0.05);' : ''}">${isHub ? 'COMM_LINK ACTIVE' : 'FIELD_OP'}</div>
+      </div>
+
+      <div style="flex-grow: 1; overflow-y: auto; padding: 20px;">
+        ${items.length === 0 ? `
+          <div style="text-align: center; padding: 100px 0; opacity: 0.3;">
+            <div style="font-size: 48px; margin-bottom: 20px;">∅</div>
+            <div style="font-size: 10px; letter-spacing: 2px;">CARGO BAY EMPTY</div>
+          </div>
+        ` : items.map((item, i) => {
+          const marketValue = gameState.getMarketValue(item.id, item.value);
+          const saturation = s.marketSaturation[item.id] || 0;
+          
+          return `
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-cyan); padding: 15px; margin-bottom: 10px;">
+               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <span style="font-size: 13px; font-weight: 600; letter-spacing: 1px;">${item.name.toUpperCase()}</span>
+                  <span style="color: var(--neon-orange); font-size: 12px;">${marketValue} CR</span>
+               </div>
+               
+               <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-size: 10px; opacity: 0.4;">SATURATION: ${Math.floor(saturation * 100)}%</div>
+                  ${isHub ? `<button class="sci-fi-btn" style="padding: 4px 10px; font-size: 10px; border-radius: 2px;" onclick="sellItem(${i})">Liquidate</button>` : ''}
+               </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="padding: 30px; background: rgba(255, 255, 255, 0.03); border-top: 1px solid var(--border-cyan);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+           <span style="font-size: 10px; opacity: 0.5;">ESTIMATED NET VALUE</span>
+           <span style="color: var(--neon-cyan); font-weight: 600;">${items.reduce((acc, it) => acc + gameState.getMarketValue(it.id, it.value), 0)} CR</span>
+        </div>
+        <div style="font-size: 9px; opacity: 0.3; text-align: center; margin-top: 20px; letter-spacing: 2px;">AETHER-CORP LOGISTICS HUB // TAB TO CLOSE</div>
+      </div>
+    `;
+  }
+
+  private handleSell(index: number) {
+    const item = gameState.get().inventory[index];
+    if (item) {
+       gameState.sellItem(item);
+       this.render();
     }
+  }
 
-    items.forEach((item, i) => {
-      const row = new Rectangle(`inv_row_${i}`);
-      row.height = '50px';
-      row.width = '100%';
-      row.background = '#ffffff05';
-      row.thickness = 1;
-      row.color = '#ffffff11';
-      row.paddingBottom = '5px';
-      this.listRoot.addControl(row);
-
-      const name = new TextBlock(`inv_item_name_${i}`, item.name.toUpperCase());
-      name.color = '#ffffff';
-      name.fontSize = 14;
-      name.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      name.left = '10px';
-      row.addControl(name);
-
-      const val = new TextBlock(`inv_item_val_${i}`, `${item.value}c`);
-      val.color = '#44ccff';
-      val.fontSize = 14;
-      val.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-      val.right = '10px';
-      row.addControl(val);
-    });
-    
-    const total = items.reduce((acc, item) => acc + item.value, 0);
-    const totalRow = new TextBlock('inv_total', `ESTIMATED VALUE: ${total}c`);
-    totalRow.height = '40px';
-    totalRow.color = '#ffcc44';
-    totalRow.fontSize = 16;
-    this.listRoot.addControl(totalRow);
+  public dispose(): void {
+    this.container.remove();
   }
 }

@@ -1,15 +1,19 @@
 import {
   Scene,
   Vector3,
-  MeshBuilder,
-  StandardMaterial,
-  Color3,
-  Mesh,
   TransformNode,
+  Color3,
   Ray,
   Sound,
+  SceneLoader,
+  AnimationGroup,
+  AbstractMesh,
+  Mesh,
 } from '@babylonjs/core';
 import type { HealthSystem } from '../state/HealthSystem';
+import type { HUD } from '../../ui/hud/HUD';
+import { gameState } from '../state/GameState';
+import { ASSETS } from '../AssetManifest';
 
 export enum AIState {
   PATROL,
@@ -30,34 +34,40 @@ export class SecurityBot {
   private patrolRadius = 5;
   private startPosition: Vector3;
   private patrolTarget: Vector3;
-  
   private lastFireTime = 0;
   private fireRate = 800; // ms
   private damage = 5;
+  private health = 20;
+  private hud: HUD;
 
-  constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem) {
+  // Steering AI
+  private velocity: Vector3 = Vector3.Zero();
+  private maxSpeed = 0.08;
+  private maxForce = 0.02;
+  private mass = 1.0;
+
+  // 3D Model & Animations
+  private mesh: AbstractMesh | null = null;
+  private anims: AnimationGroup[] = [];
+
+  private waypoints: Vector3[] = [];
+  private waypointIndex = 0;
+
+  constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem, hud: HUD, waypoints?: Vector3[]) {
     this.scene = scene;
     this.target = target;
     this.playerHealth = playerHealth;
+    this.hud = hud;
     this.startPosition = position.clone();
-    this.patrolTarget = this.getRandomPatrolPoint();
-
-    // Visuals: A hovering drone-like sphere with an "eye"
-    this.mesh = MeshBuilder.CreateSphere('security_bot', { diameter: 0.6 }, scene);
-    this.mesh.position = position;
     
-    const mat = new StandardMaterial('bot_mat', scene);
-    mat.diffuseColor = new Color3(0.2, 0.2, 0.25);
-    mat.emissiveColor = new Color3(0.1, 0.2, 0.4); // Blue idle eye
-    this.mesh.material = mat;
+    if (waypoints && waypoints.length > 0) {
+      this.waypoints = waypoints;
+      this.patrolTarget = this.waypoints[0];
+    } else {
+      this.patrolTarget = this.getRandomPatrolPoint();
+    }
 
-    const eye = MeshBuilder.CreateBox('bot_eye', { width: 0.2, height: 0.1, depth: 0.15 }, scene);
-    eye.position = new Vector3(0, 0, 0.3);
-    eye.parent = this.mesh;
-    
-    const eyeMat = new StandardMaterial('bot_eye_mat', scene);
-    eyeMat.emissiveColor = new Color3(0.1, 0.8, 1.0);
-    eye.material = eyeMat;
+    this.loadModel(position);
 
     // Positional Audio
     const hum = new Sound('bot_hum', 'https://www.babylonjs-live.com/assets/sounds/fan.wav', scene, null, {
@@ -67,9 +77,38 @@ export class SecurityBot {
       distanceModel: 'exponential',
       maxDistance: 10,
     });
-    hum.attachToMesh(this.mesh);
+    // Attachment happens after load
 
     scene.onBeforeRenderObservable.add(() => this.update());
+  }
+
+  private async loadModel(position: Vector3) {
+    const result = await SceneLoader.ImportMeshAsync("", "", ASSETS.ENEMIES.SECURITY_MECH, this.scene);
+    this.mesh = result.meshes[0];
+    this.mesh.position = position;
+    this.mesh.scaling = new Vector3(0.5, 0.5, 0.5);
+    this.anims = result.animationGroups;
+    
+    // Default to Idle animation
+    this.playAnim('Idle', true);
+
+    this.mesh.metadata = {
+      onHit: (damage: number) => {
+        this.health -= damage;
+        if (this.health <= 0) {
+           if (gameState.addXP(100)) this.hud.showLevelUp();
+           this.dispose();
+        }
+      }
+    };
+  }
+
+  private playAnim(name: string, loop: boolean) {
+    const anim = this.anims.find(a => a.name.includes(name));
+    if (anim && !anim.isPlaying) {
+      this.anims.forEach(a => a.stop());
+      anim.start(loop);
+    }
   }
 
   private update(): void {
@@ -78,25 +117,27 @@ export class SecurityBot {
     switch (this.state) {
       case AIState.PATROL:
         this.patrol();
+        this.playAnim('Walk', true);
         if (distToPlayer < this.detectionRange) {
           this.state = AIState.ALERT;
-          this.setEyeColor(new Color3(1, 0.5, 0)); // Orange alert
         }
         break;
 
       case AIState.ALERT:
-        this.mesh.lookAt(this.target.position);
+        if (this.mesh) this.mesh.lookAt(this.target.position);
+        this.playAnim('Idle', true);
+        this.applySteering(this.target.position); // Slow drift toward player
         if (distToPlayer < this.attackRange) {
           this.state = AIState.ATTACK;
-          this.setEyeColor(new Color3(1, 0, 0)); // Red attack
         } else if (distToPlayer > this.detectionRange) {
           this.state = AIState.PATROL;
-          this.setEyeColor(new Color3(0.1, 0.8, 1.0)); // Back to blue
         }
         break;
 
       case AIState.ATTACK:
-        this.mesh.lookAt(this.target.position);
+        if (this.mesh) this.mesh.lookAt(this.target.position);
+        this.playAnim('Shoot', true);
+        this.applySteering(this.target.position, true); // Maintain distance / arrive
         this.attack();
         if (distToPlayer > this.attackRange) {
           this.state = AIState.ALERT;
@@ -107,12 +148,39 @@ export class SecurityBot {
   }
 
   private patrol(): void {
-    const direction = this.patrolTarget.subtract(this.mesh.position).normalize();
-    this.mesh.position.addInPlace(direction.scale(this.speed * 0.5));
-    this.mesh.lookAt(this.patrolTarget);
+    this.applySteering(this.patrolTarget, true);
+    
+    if (Vector3.Distance(this.mesh.position, this.patrolTarget) < 1.5) {
+      if (this.waypoints.length > 0) {
+        this.waypointIndex = (this.waypointIndex + 1) % this.waypoints.length;
+        this.patrolTarget = this.waypoints[this.waypointIndex];
+      } else {
+        this.patrolTarget = this.getRandomPatrolPoint();
+      }
+    }
+  }
 
-    if (Vector3.Distance(this.mesh.position, this.patrolTarget) < 0.5) {
-      this.patrolTarget = this.getRandomPatrolPoint();
+  private applySteering(target: Vector3, arrival = false): void {
+    const desired = target.subtract(this.mesh.position);
+    let speed = this.maxSpeed;
+
+    if (arrival) {
+      const dist = desired.length();
+      if (dist < 3) speed = this.maxSpeed * (dist / 3);
+    }
+
+    desired.normalize().scaleInPlace(speed);
+
+    const steer = desired.subtract(this.velocity);
+    if (steer.length() > this.maxForce) {
+      steer.normalize().scaleInPlace(this.maxForce);
+    }
+
+    this.velocity.addInPlace(steer.scale(1/this.mass));
+    this.mesh.position.addInPlace(this.velocity);
+
+    if (this.velocity.length() > 0.01) {
+       this.mesh.lookAt(this.mesh.position.add(this.velocity));
     }
   }
 

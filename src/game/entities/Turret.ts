@@ -9,6 +9,8 @@ import {
   Ray,
 } from '@babylonjs/core';
 import type { HealthSystem } from '../state/HealthSystem';
+import type { HUD } from '../../ui/hud/HUD';
+import { gameState } from '../state/GameState';
 
 export class Turret {
   private scene: Scene;
@@ -21,11 +23,14 @@ export class Turret {
   private fireRate = 1000; // ms
   private damage = 10;
   private lastFireTime = 0;
+  private hud: HUD;
+  private health = 30;
 
-  constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem) {
+  constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem, hud: HUD) {
     this.scene = scene;
     this.target = target;
     this.playerHealth = playerHealth;
+    this.hud = hud;
 
     // Visuals
     this.base = MeshBuilder.CreateBox('turret_base', { width: 0.8, height: 0.2, depth: 0.8 }, scene);
@@ -42,6 +47,16 @@ export class Turret {
     headMat.diffuseColor = new Color3(0.1, 0.1, 0.1);
     headMat.emissiveColor = new Color3(0.3, 0.05, 0.05); // Red eye
     this.head.material = headMat;
+    
+    this.head.metadata = {
+      onHit: (damage: number) => {
+        this.health -= damage;
+        if (this.health <= 0) {
+           if (gameState.addXP(200)) this.hud.showLevelUp();
+           this.dispose();
+        }
+      }
+    };
 
     // Tracking loop
     scene.onBeforeRenderObservable.add(() => this.update());

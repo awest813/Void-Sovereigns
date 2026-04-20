@@ -1,3 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;600&family=Inter:wght@400;700&display=swap');
+
+:root {
+  --neon-cyan: #00ffff;
+  --neon-orange: #ffaa00;
+  --bg-dark: #020508;
+  --glass-bg: rgba(5, 12, 20, 0.9);
+  --border-cyan: rgba(0, 255, 255, 0.2);
+  --border-orange: rgba(255, 170, 0, 0.2);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -8,7 +19,9 @@ body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
-  background: #000;
+  background-color: var(--bg-dark);
+  font-family: 'Outfit', sans-serif;
+  color: #fff;
 }
 
 canvas#game-canvas {
@@ -16,4 +29,86 @@ canvas#game-canvas {
   height: 100%;
   display: block;
   outline: none;
+}
+
+/* Premium Classes */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--border-cyan);
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 50, 80, 0.1);
+  border-radius: 4px;
+}
+
+.sci-fi-btn {
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid var(--border-cyan);
+  color: var(--neon-cyan);
+  padding: 12px 24px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.sci-fi-btn:hover {
+  background: rgba(0, 255, 255, 0.15);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.sci-fi-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.4), transparent);
+  transition: left 0.5s;
+}
+
+.sci-fi-btn:hover::before {
+  left: 150%;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: rgba(255, 170, 0, 0.1);
+  border: 1px solid var(--neon-orange);
+  color: var(--neon-orange);
+}
+
+.scanline-container {
+  position: relative;
+}
+
+.scanline-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.06),
+    rgba(0, 255, 0, 0.02),
+    rgba(0, 0, 255, 0.06)
+  );
+  z-index: 999;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  opacity: 0.2;
 }

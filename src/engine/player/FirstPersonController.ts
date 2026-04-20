@@ -3,7 +3,10 @@ import {
   Vector3,
   Scene,
   KeyboardEventTypes,
+  TransformNode,
+  Sound
 } from '@babylonjs/core';
+import { gameState } from '../../game/state/GameState';
 
 export interface FirstPersonControllerOptions {
   position?: Vector3;
@@ -23,9 +26,20 @@ export class FirstPersonController {
   private gravity = -0.005; // Per-frame floaty gravity
   private jumpPower = 0.15;
 
+  private footstepSound: Sound;
+  private stepAccumulator = 0;
+
   constructor(scene: Scene, canvas: HTMLCanvasElement, options: FirstPersonControllerOptions = {}) {
     this.baseSpeed = options.speed ?? 0.5;
+    if (gameState.hasPerk('MARATHONER')) this.baseSpeed *= 1.25;
+    
     this.sprintMultiplier = options.sprintMultiplier ?? 1.8;
+
+    this.footstepSound = new Sound('footstep', 'https://www.babylonjs-live.com/assets/sounds/step.wav', scene, null, {
+        volume: 0.15,
+        playbackRate: 1.0,
+        autoplay: false
+    });
 
     const position = options.position ?? new Vector3(0, 1.7, 0);
     this.camera = new UniversalCamera('fps-camera', position, scene);
@@ -68,8 +82,28 @@ export class FirstPersonController {
       }
     });
 
-    // Custom Physics Mock for floaty jump
+    // Footstep & Custom Physics Logic
     scene.onBeforeRenderObservable.add(() => {
+        const engine = scene.getEngine();
+        const delta = engine.getDeltaTime();
+        
+        // Footstep timing
+        if (this.camera.position.y <= this.groundLevel + 0.1) {
+            const isMoving = this.camera.cameraDirection.length() > 0.001 || this.camera.cameraRotation.length() > 0.001;
+            // Movement check uses WASD input indirectly via camera direction
+            // We'll check if any movement key is pressed for accuracy
+            const keysPressed = this.camera.keysUp.concat(this.camera.keysDown, this.camera.keysLeft, this.camera.keysRight);
+            // This is complex, let's just use cameraDirection
+            if (this.camera.cameraDirection.length() > 0.0001) {
+                this.stepAccumulator += delta;
+                const stepThreshold = (this.camera.speed > this.baseSpeed) ? 250 : 400; // Faster steps when sprinting
+                if (this.stepAccumulator > stepThreshold) {
+                    this.footstepSound.play();
+                    this.stepAccumulator = 0;
+                }
+            }
+        }
+
         if (this.camera.position.y > this.groundLevel || this.verticalVelocity > 0) {
             this.camera.position.y += this.verticalVelocity;
             this.verticalVelocity += this.gravity;
@@ -92,9 +126,5 @@ export class FirstPersonController {
 
   getForwardRay(length = 3) {
     return this.camera.getForwardRay(length);
-  }
-
-  getSprinting(): boolean {
-    return this.isSprinting;
   }
 }

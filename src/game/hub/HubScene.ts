@@ -15,11 +15,14 @@ import { addIndustrialClutter, createIndustrialDetail, createHazardStripe } from
 import { setupIndustrialPalette, PALETTE } from '../MaterialManager';
 import { setupAdvancedRendering } from '../RenderingUtils';
 import { createFlickeringLight } from '../effects/EnvironmentalHazards';
+import { StationNPC } from '../entities/StationNPC';
 
 export interface HubLandmarks {
   missionTerminal: Mesh;
   npcTerminal: Mesh;
   shopTerminal: Mesh;
+  perkTerminal: Mesh;
+  decryptionTerminal: Mesh;
   deployPoint: Mesh;
 }
 
@@ -94,15 +97,49 @@ export async function buildHubScene(scene: Scene): Promise<HubLandmarks> {
   addIndustrialClutter(scene, scene);
 
   // 3. Landmarks & Terminals (Repositioned for the ship layout)
-  const missionTerminal = createTerminal(scene, 'mission', new Vector3(0, 0.9, -9), mats.objective); // In Cockpit
+   const missionTerminal = createTerminal(scene, 'mission', new Vector3(0, 0.9, -9), mats.objective); // In Cockpit
   const npcTerminal = createTerminal(scene, 'npc', new Vector3(-2, 0.9, 0), mats.accent);             // In Main Hold
   const shopTerminal = createTerminal(scene, 'shop', new Vector3(2, 0.9, 0), mats.extract);            // In Main Hold
+  const perkTerminal = createTerminal(scene, 'perks', new Vector3(-3, 0.9, 8), mats.accent);           // In Engineering
+  const decryptionTerminal = createTerminal(scene, 'decryption', new Vector3(3, 0.9, 8), mats.objective); // In Engineering
   const deployPoint = createTerminal(scene, 'deploy', new Vector3(0, 1.5, 10), mats.extract, true);    // In Engineering/AirLock
+
+  // 4. Injected Life (NPCs)
+  new StationNPC(scene, 'guard', new Vector3(1.5, 0, 8.5), Math.PI); // Guard near airlock exit
+  new StationNPC(scene, 'engineer', new Vector3(2.5, 0, 1), Math.PI / 2); // Engineer by consoles
+  new StationNPC(scene, 'officer', new Vector3(-1.5, 0, -10), 0); // Officer in cockpit area
+
+  // 5. Advanced Props (Ships & Vehicles)
+  loadHangarAssets(scene);
+
+  // Wandering Crew
+  const patrolPath = [
+    new Vector3(0, 0, -8), // Cockpit
+    new Vector3(0, 0, 0),  // Main Hold
+    new Vector3(0, 0, 6),  // Engineering Entrance
+  ];
+  new StationNPC(scene, 'wanderer', patrolPath[0], 0, patrolPath);
 
   // 5. Lighting
   createHubLighting(scene);
 
-  return { missionTerminal, npcTerminal, shopTerminal, deployPoint };
+  return { missionTerminal, npcTerminal, shopTerminal, perkTerminal, decryptionTerminal, deployPoint };
+}
+
+async function loadHangarAssets(scene: Scene) {
+  // Extraction Dropship (Visible through "windows" or docked in engineering)
+  const shipPack = await SceneLoader.ImportMeshAsync("", "", ASSETS.SHIPS.DROPSHIP, scene);
+  const ship = shipPack.meshes[0];
+  ship.position = new Vector3(8, 0, 10); // Placed outside the airlock area
+  ship.rotation = new Vector3(0, -Math.PI / 4, 0);
+  ship.scaling = new Vector3(2.5, 2.5, 2.5); // Giant ship presence
+
+  // Engineering Crane
+  const cranePack = await SceneLoader.ImportMeshAsync("", "", ASSETS.VEHICLES.CRANE, scene);
+  const crane = cranePack.meshes[0];
+  crane.position = new Vector3(-6, 0, 7);
+  crane.scaling = new Vector3(1.5, 1.5, 1.5);
+  crane.rotation = new Vector3(0, Math.PI / 2, 0);
 }
 
 function createHallway(scene: Scene, pos: Vector3, size: Vector3, mat: any): void {

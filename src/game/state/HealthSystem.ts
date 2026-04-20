@@ -1,3 +1,5 @@
+import { gameState } from './GameState';
+
 export interface HealthSystemOptions {
   maxHealth: number;
   onDamage?: (current: number, max: number) => void;
@@ -20,8 +22,10 @@ export class HealthSystem {
     this.options = options;
     this.maxHealth = options.maxHealth;
     this.currentHealth = options.maxHealth;
-    this.maxShield = 100;
-    this.currentShield = 100;
+    
+    // Perk check for Titan Shields
+    this.maxShield = gameState.hasPerk('TITAN SHIELDS') ? 200 : 100;
+    this.currentShield = this.maxShield;
   }
 
   takeDamage(amount: number): void {
@@ -54,8 +58,6 @@ export class HealthSystem {
           this.currentShield = Math.min(this.maxShield, this.currentShield + (this.shieldRegenRate * deltaSeconds));
        }
     }
-    // Note: We need a way to tell the HUD about the new shield value
-    // We'll add an onShieldUpdate to options or just return it
   }
 
   getShieldPercent(): number {
@@ -64,7 +66,6 @@ export class HealthSystem {
 
   heal(amount: number): void {
     if (this.currentHealth <= 0) return;
-    
     this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
     this.options.onHeal?.(this.currentHealth, this.maxHealth);
   }
@@ -79,5 +80,6 @@ export class HealthSystem {
 
   reset(): void {
     this.currentHealth = this.maxHealth;
+    this.currentShield = this.maxShield;
   }
 }
