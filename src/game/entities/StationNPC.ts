@@ -1,13 +1,12 @@
 import { 
   Scene, 
   Vector3, 
-  SceneLoader, 
   AbstractMesh, 
   AnimationGroup,
-  TransformNode,
   Sound
 } from '@babylonjs/core';
 import { ASSETS } from '../AssetManifest';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export type NPCType = 'guard' | 'engineer' | 'officer' | 'wanderer';
 
@@ -46,8 +45,8 @@ export class StationNPC {
     // 1. Get/Load Animations from global cache
     if (!ANIM_CACHE['v1'] || !ANIM_CACHE['v2']) {
         const [packV1, packV2] = await Promise.all([
-            SceneLoader.ImportMeshAsync("", "", ASSETS.CHARACTERS.ANIM_LIBRARY_V1, this.scene),
-            SceneLoader.ImportMeshAsync("", "", ASSETS.CHARACTERS.ANIM_LIBRARY_V2, this.scene)
+            importMeshAsync(ASSETS.CHARACTERS.ANIM_LIBRARY_V1, this.scene),
+            importMeshAsync(ASSETS.CHARACTERS.ANIM_LIBRARY_V2, this.scene)
         ]);
         ANIM_CACHE['v1'] = packV1.animationGroups;
         ANIM_CACHE['v2'] = packV2.animationGroups;
@@ -59,7 +58,7 @@ export class StationNPC {
       ? ASSETS.CHARACTERS.SF_FEMALE 
       : ASSETS.CHARACTERS.SF_MALE;
       
-    const modelPack = await SceneLoader.ImportMeshAsync("", "", modelPath, this.scene);
+    const modelPack = await importMeshAsync(modelPath, this.scene);
     this.mesh = modelPack.meshes[0];
     this.mesh.position = position;
     this.mesh.rotation = new Vector3(0, rotationY, 0);

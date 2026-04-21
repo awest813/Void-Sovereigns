@@ -1,5 +1,5 @@
-import { MISSIONS, Mission } from '../../content/missions/missionData';
-import { TABLES, LootEntry } from './LootTable';
+import { MISSIONS, type MissionDefinition } from '../../content/missions/missionData';
+import { TABLES } from './LootTable';
 
 export interface Perk {
   id: string;
@@ -11,8 +11,7 @@ export interface Perk {
 
 export class DataManager {
   private static instance: DataManager;
-  
-  private missions: Mission[] = [];
+  private missions: MissionDefinition[] = [];
   private perks: Perk[] = [];
 
   private constructor() {
@@ -27,48 +26,62 @@ export class DataManager {
   }
 
   private initialize(): void {
-    // 1. Load Missions from Content
     this.missions = [...MISSIONS];
-
-    // 2. Load Perks (Static for now, can be external JSON)
     this.perks = [
-      { id: 'TITAN_SHIELDS', name: 'TITAN SHIELDS', description: 'Double maximum shield capacity (200 Units)', icon: '🛡️', cost: 1 },
-      { id: 'MARATHONER', name: 'MARATHONER', description: '+25% Base Movement Speed', icon: '🏃', cost: 1 },
-      { id: 'OXY_EFFICIENCY', name: 'OXY-EFFICIENCY', description: '-40% Oxygen Consumption Rate', icon: '🫁', cost: 1 },
-      { id: 'DEVASTATOR_MELEE', name: 'DEVASTATOR MELEE', description: 'Double Melee Bash Damage (100 Damage)', icon: '👊', cost: 1 },
+      {
+        id: 'TITAN SHIELDS',
+        name: 'TITAN SHIELDS',
+        description: 'Double maximum shield capacity (200 units).',
+        icon: 'SH',
+        cost: 1,
+      },
+      {
+        id: 'MARATHONER',
+        name: 'MARATHONER',
+        description: '+25% base movement speed.',
+        icon: 'SP',
+        cost: 1,
+      },
+      {
+        id: 'OXY-EFFICIENCY',
+        name: 'OXY-EFFICIENCY',
+        description: '-40% oxygen consumption rate.',
+        icon: 'OX',
+        cost: 1,
+      },
+      {
+        id: 'DEVASTATOR MELEE',
+        name: 'DEVASTATOR MELEE',
+        description: 'Double melee bash damage.',
+        icon: 'ME',
+        cost: 1,
+      },
     ];
   }
 
-  // --- Mission API ---
-  public getMissions(): Mission[] {
+  public getMissions(): MissionDefinition[] {
     return this.missions;
   }
 
-  public getMission(id: string): Mission | undefined {
-    return this.missions.find(m => m.id === id);
+  public getMission(id: string): MissionDefinition | undefined {
+    return this.missions.find((mission) => mission.id === id);
   }
 
-  // --- Perk API ---
   public getPerks(): Perk[] {
     return this.perks;
   }
 
   public getPerk(id: string): Perk | undefined {
-    return this.perks.find(p => p.id === id);
+    return this.perks.find((perk) => perk.id === id);
   }
 
-  // --- Loot API ---
   public getLootTable(tier: 'COMMON' | 'RARE' | 'BOSS') {
     return TABLES[tier];
   }
 
-  /**
-   * Centralized method to handle data migrations or external overrides 
-   * in the future (e.g., loading from a remote URL).
-   */
   public async syncWithRemote(): Promise<boolean> {
     console.log('[DataManager] Syncing tactical data with terminal...');
-    return true; 
+    return true;
   }
 }
 

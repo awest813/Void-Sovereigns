@@ -3,19 +3,19 @@ import {
   Vector3,
   MeshBuilder,
   GlowLayer,
-  SceneLoader,
   TransformNode,
   PointLight,
   SpotLight,
   Sound,
   type Mesh,
 } from '@babylonjs/core';
-import '@babylonjs/loaders';
 import { addIndustrialClutter, createIndustrialDetail, createHazardStripe } from '../VisualUtils';
 import { setupIndustrialPalette, PALETTE } from '../MaterialManager';
 import { setupAdvancedRendering } from '../RenderingUtils';
 import { createFlickeringLight } from '../effects/EnvironmentalHazards';
 import { StationNPC } from '../entities/StationNPC';
+import { ASSETS } from '../AssetManifest';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export interface HubLandmarks {
   missionTerminal: Mesh;
@@ -32,7 +32,7 @@ export interface HubLandmarks {
  */
 export async function buildHubScene(scene: Scene): Promise<HubLandmarks> {
   const mats = setupIndustrialPalette(scene);
-  setupAdvancedRendering(scene, 'hub');
+  await setupAdvancedRendering(scene, 'hub');
 
   // 1. Environment Loading (Base placeholder or ship sections)
   // We'll build the ship structure manually for precise 'Ebon Hawk' layout
@@ -128,14 +128,14 @@ export async function buildHubScene(scene: Scene): Promise<HubLandmarks> {
 
 async function loadHangarAssets(scene: Scene) {
   // Extraction Dropship (Visible through "windows" or docked in engineering)
-  const shipPack = await SceneLoader.ImportMeshAsync("", "", ASSETS.SHIPS.DROPSHIP, scene);
+  const shipPack = await importMeshAsync(ASSETS.SHIPS.DROPSHIP, scene);
   const ship = shipPack.meshes[0];
   ship.position = new Vector3(8, 0, 10); // Placed outside the airlock area
   ship.rotation = new Vector3(0, -Math.PI / 4, 0);
   ship.scaling = new Vector3(2.5, 2.5, 2.5); // Giant ship presence
 
   // Engineering Crane
-  const cranePack = await SceneLoader.ImportMeshAsync("", "", ASSETS.VEHICLES.CRANE, scene);
+  const cranePack = await importMeshAsync(ASSETS.VEHICLES.CRANE, scene);
   const crane = cranePack.meshes[0];
   crane.position = new Vector3(-6, 0, 7);
   crane.scaling = new Vector3(1.5, 1.5, 1.5);
@@ -170,7 +170,7 @@ function createTerminal(scene: Scene, name: string, pos: Vector3, mat: any, isLa
 function createHubLighting(scene: Scene): void {
   const light = new PointLight('hub_main_light', new Vector3(0, 4, 0), scene);
   light.intensity = 0.8;
-  light.diffuse = PALETTE.ACCENT;
+  light.diffuse = PALETTE.INDUSTRIAL.ACCENT;
 
   const spot = new SpotLight('term_spot', new Vector3(-2, 3, -5), new Vector3(0, -1, 0.2), Math.PI / 3, 2, scene);
   spot.intensity = 0.5;

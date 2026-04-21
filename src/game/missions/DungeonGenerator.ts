@@ -11,7 +11,7 @@ export interface RoomNode {
 }
 
 export class DungeonGenerator {
-  generate(seed: number): RoomNode[] {
+  generate(_seed: number): RoomNode[] {
     const rooms: RoomNode[] = [];
     
     // Start with a central Corridor Hub

@@ -1,4 +1,5 @@
-import { Engine, WebGPUEngine, Scene } from '@babylonjs/core';
+import { Engine, Scene } from '@babylonjs/core';
+import type { WebGPUEngine } from '@babylonjs/core/Engines/webgpuEngine';
 
 export class GameEngine {
   readonly canvas: HTMLCanvasElement;
@@ -16,8 +17,10 @@ export class GameEngine {
 
     let engine: Engine | WebGPUEngine;
     if (navigator.gpu) {
-      engine = new WebGPUEngine(canvas, { antialias: true, adaptToDeviceRatio: true });
-      await (engine as WebGPUEngine).initAsync();
+      const { WebGPUEngine } = await import('@babylonjs/core/Engines/webgpuEngine');
+      const webgpuEngine = new WebGPUEngine(canvas, { antialias: true, adaptToDeviceRatio: true });
+      await webgpuEngine.initAsync();
+      engine = webgpuEngine;
     } else {
       engine = new Engine(canvas, true, {}, true);
     }

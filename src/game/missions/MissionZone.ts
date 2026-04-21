@@ -5,7 +5,6 @@ import {
   Color3, 
   PointLight, 
   TransformNode,
-  SceneLoader,
   AbstractMesh,
   Mesh,
   ParticleSystem,
@@ -26,6 +25,7 @@ import { createSteamLeak } from '../effects/EnvironmentalHazards';
 import { RadioChatter } from '../effects/RadioChatter';
 import { gameState } from '../state/GameState';
 import { TABLES } from '../state/LootTable';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export interface MissionZoneLandmarks {
   objectiveItemOrNode: AbstractMesh | TransformNode;
@@ -41,7 +41,7 @@ async function getModel(scene: Scene, path: string): Promise<AbstractMesh> {
     const clone = MODEL_CACHE[path].clone(`${path}_clone`, null);
     if (clone) return clone;
   }
-  const result = await SceneLoader.ImportMeshAsync("", "", path, scene);
+  const result = await importMeshAsync(path, scene);
   const mainMesh = result.meshes[0];
   mainMesh.setEnabled(false); // Hide the template
   MODEL_CACHE[path] = mainMesh;
@@ -60,7 +60,7 @@ export async function buildMissionZone(
   biome: 'industrial' | 'arctic' | 'depot' = 'industrial'
 ): Promise<MissionZoneLandmarks> {
   setupIndustrialPalette(scene, biome);
-  setupAdvancedRendering(scene, 'mission');
+  await setupAdvancedRendering(scene, 'mission');
 
   const generator = new DungeonGenerator();
   const rooms = generator.generate(Math.random());
@@ -150,6 +150,7 @@ async function spawnLootBox(scene: Scene, room: RoomNode, is: InteractionSystem,
          gameState.addLoot({ id: item.id, name: item.name, value: item.baseValue });
          hud.showMessage(`Recovered: ${item.name}`);
        }
+       is.unregister(interactable);
        box.dispose();
     }
   };
@@ -179,10 +180,15 @@ async function spawnPickup(scene: Scene, room: RoomNode, is: InteractionSystem, 
           health.heal(50);
           hud.showMessage("NEURAL INTEGRITY RESTORED (+50 HP)");
        } else {
-          // Placeholder for ammo system
+          const ammo = { ...gameState.get().ammo };
+          ammo.pistol += 18;
+          ammo.shotgun += 6;
+          ammo.smg += 36;
+          gameState.update({ ammo });
           hud.showMessage("WEAPON CHARGES REPLENISHED");
        }
        mesh.dispose();
+       is.unregister(interactable);
     }
   };
   is.register(interactable);

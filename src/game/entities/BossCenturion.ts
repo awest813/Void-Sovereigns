@@ -4,9 +4,6 @@ import {
   TransformNode,
   Color3,
   Ray,
-  Sound,
-  SceneLoader,
-  AnimationGroup,
   AbstractMesh,
   StandardMaterial
 } from '@babylonjs/core';
@@ -15,6 +12,7 @@ import type { HUD } from '../../ui/hud/HUD';
 import { gameState } from '../state/GameState';
 import { ASSETS } from '../AssetManifest';
 import { TABLES } from '../state/LootTable';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export class BossCenturion {
   private scene: Scene;
@@ -47,7 +45,7 @@ export class BossCenturion {
   }
 
   private async loadModel(position: Vector3) {
-    const result = await SceneLoader.ImportMeshAsync("", "", ASSETS.ENEMIES.SECURITY_MECH, this.scene);
+    const result = await importMeshAsync(ASSETS.ENEMIES.SECURITY_MECH, this.scene);
     this.mesh = result.meshes[0];
     this.mesh.position = position;
     this.mesh.scaling = new Vector3(1.2, 1.2, 1.2); // BOSS SCALE

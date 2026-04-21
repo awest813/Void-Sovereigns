@@ -3,7 +3,6 @@ import { TABLES } from '../game/state/LootTable';
 
 export class DecryptionUI {
   private container: HTMLDivElement;
-  private isVisible = false;
 
   constructor() {
     this.container = document.createElement('div');
@@ -29,13 +28,11 @@ export class DecryptionUI {
   }
 
   public show(): void {
-    this.isVisible = true;
     this.container.style.display = 'block';
     this.render();
   }
 
   public hide(): void {
-    this.isVisible = false;
     this.container.style.display = 'none';
   }
 
@@ -106,5 +103,9 @@ export class DecryptionUI {
         <button style="padding: 10px 30px; background: #00ffff; border: none; color: #000; font-weight: bold; cursor: pointer;" onclick="window.closeDecryption()">CLAIM</button>
       </div>
     `;
+  }
+
+  public dispose(): void {
+    this.container.remove();
   }
 }

@@ -59,10 +59,11 @@ export function createHazardStripe(scene: Scene, position: Vector3, rotation: Ve
 
   root.position = position;
   root.rotation = rotation;
+  root.scaling.x = width;
   return root;
 }
 
-export function addIndustrialClutter(scene: Scene, container: Mesh | Scene): void {
+export function addIndustrialClutter(scene: Scene, _container: Mesh | Scene): void {
   // Add a few pipes along walls
   createIndustrialDetail(scene, 'pipe', new Vector3(-5.8, 2.8, 0), new Vector3(Math.PI / 2, 0, 0));
   createIndustrialDetail(scene, 'pipe', new Vector3(-5.7, 2.9, 0), new Vector3(Math.PI / 2, 0, 0));

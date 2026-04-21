@@ -1,5 +1,4 @@
 import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, ParticleSystem, Texture, Color4, Ray } from '@babylonjs/core';
-import { SecurityBot } from '../entities/SecurityBot';
 
 export class GravityGrenade {
   private scene: Scene;

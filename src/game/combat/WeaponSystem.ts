@@ -7,7 +7,6 @@ import {
   ParticleSystem,
   Texture,
   Color4,
-  SceneLoader,
   AbstractMesh,
 } from '@babylonjs/core';
 import type { FirstPersonController } from '../../engine/player/FirstPersonController';
@@ -15,6 +14,7 @@ import { gameState } from '../state/GameState';
 import { GravityGrenade } from './GravityGrenade';
 import { ASSETS } from '../AssetManifest';
 import { HUD } from '../../ui/hud/HUD';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export type WeaponRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
@@ -148,7 +148,7 @@ export class WeaponSystem {
     this.refreshStats();
 
     const path = ASSETS.WEAPONS[type.toUpperCase() as keyof typeof ASSETS.WEAPONS];
-    const result = await SceneLoader.ImportMeshAsync("", "", path, this.scene);
+    const result = await importMeshAsync(path, this.scene);
     this.weaponMesh = result.meshes[0];
     this.weaponMesh.parent = this.player.camera;
     this.weaponMesh.position = new Vector3(0.25, -1.2, 0.6);

@@ -28,7 +28,12 @@ export class ExtractionSystem {
 
   private update(): void {
     const s = gameState.get();
-    if (s.currentScene !== 'mission' || s.missionStatus !== 'objectiveComplete') return;
+    if (
+      s.currentScene !== 'mission' ||
+      (s.missionStatus !== 'objectiveComplete' && s.missionStatus !== 'extractionAvailable')
+    ) {
+      return;
+    }
 
     const playerPos = this.scene.activeCamera?.position;
     if (!playerPos) return;
@@ -38,6 +43,11 @@ export class ExtractionSystem {
     if (dist < 3) {
       if (!this.isExtracting) {
         this.isExtracting = true;
+        if (s.missionStatus === 'objectiveComplete') {
+          gameState.update({
+            missionStatus: transitionMission(s.missionStatus, 'extractionAvailable'),
+          });
+        }
         this.hud.showMessage('ESTABLISHING UPLINK... HOLD THE ZONE', 3000);
       }
       
@@ -68,7 +78,7 @@ export class ExtractionSystem {
       1,
       (Math.random()-0.5)*10
     ));
-    new SecurityBot(this.scene, spawnPos, this.scene.activeCamera as any, this.health);
+    new SecurityBot(this.scene, spawnPos, this.scene.activeCamera as any, this.health, this.hud);
     this.hud.showMessage('WARNING: SECURITY REINFORCEMENTS DETECTED', 2000);
   }
 

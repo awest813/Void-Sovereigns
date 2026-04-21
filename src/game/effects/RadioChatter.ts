@@ -36,9 +36,10 @@ export class RadioChatter {
     this.hud.showMessage(`RADIO: ${line}`, 4000);
     
     // Play a short static burst sound
-    const staticBurst = new Sound('static', 'https://www.babylonjs-live.com/assets/sounds/ambient.wav', this.scene, null, {
-        volume: 0.1,
-        autoplay: true,
+    const staticBurst = new Sound('static', 'https://www.babylonjs-live.com/assets/sounds/ambient.wav', this.scene, undefined, {
+      volume: 0.1,
+      autoplay: true,
     });
+    setTimeout(() => staticBurst.dispose(), 1000);
   }
 }

@@ -5,7 +5,6 @@ import {
   StandardMaterial,
   Color3,
   Mesh,
-  TransformNode,
   Ray,
 } from '@babylonjs/core';
 import type { HealthSystem } from '../state/HealthSystem';

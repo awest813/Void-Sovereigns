@@ -1,8 +1,5 @@
-import { gameState } from '../game/state/GameState';
-
 export class MainMenuUI {
   private container: HTMLDivElement;
-  private isVisible = false;
   private onStart: () => void = () => {};
 
   constructor() {
@@ -30,18 +27,16 @@ export class MainMenuUI {
 
   public show(onStart: () => void): void {
     this.onStart = onStart;
-    this.isVisible = true;
     this.container.style.display = 'flex';
     this.render();
   }
 
   public hide(): void {
-    this.isVisible = false;
     this.container.style.display = 'none';
   }
 
   private render(): void {
-    const hasSave = localStorage.getItem('void_sovereigns_state') !== null;
+    const hasSave = localStorage.getItem('void-sovereigns-save') !== null;
 
     this.container.innerHTML = `
       <div style="text-align: center; margin-bottom: 80px; position: relative;">

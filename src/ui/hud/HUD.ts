@@ -1,283 +1,149 @@
-import {
-  AdvancedDynamicTexture,
-  TextBlock,
-  Ellipse,
-  Rectangle,
-  Control,
-} from '@babylonjs/gui';
-
 export class HUD {
-  private texture: AdvancedDynamicTexture;
-  private promptText: TextBlock;
-  private crosshair: Ellipse;
-  private statusMission: TextBlock;
-  private statusPanel: Rectangle;
-  private messageTimer: any = null;
-  
-  private healthBar: Rectangle;
-  private shieldBar: Rectangle;
-  private oxygenBar: Rectangle;
-  private xpBar: Rectangle;
-  private levelLabel: TextBlock;
-  private ammoLabel: TextBlock;
-
-  private bossPanel: Rectangle | null = null;
-  private bossBar: Rectangle | null = null;
-  private bossLabel: TextBlock | null = null;
+  private root: HTMLDivElement;
+  private promptText: HTMLDivElement;
+  private messageText: HTMLDivElement;
+  private statusPanel: HTMLDivElement;
+  private statusMission: HTMLDivElement;
+  private healthBar: HTMLDivElement;
+  private shieldBar: HTMLDivElement;
+  private oxygenBar: HTMLDivElement;
+  private xpBar: HTMLDivElement;
+  private levelLabel: HTMLDivElement;
+  private ammoLabel: HTMLDivElement;
+  private damageFlash: HTMLDivElement;
+  private bossPanel: HTMLDivElement | null = null;
+  private bossBar: HTMLDivElement | null = null;
+  private bossLabel: HTMLDivElement | null = null;
+  private messageTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    this.texture = AdvancedDynamicTexture.CreateFullscreenUI('hud');
+    this.root = document.createElement('div');
+    this.root.className = 'hud-root';
 
-    // 1. Crosshair (Halo-style minimalist)
-    this.crosshair = new Ellipse('crosshair');
-    this.crosshair.width = '8px';
-    this.crosshair.height = '8px';
-    this.crosshair.color = 'rgba(0, 255, 255, 0.6)';
-    this.crosshair.thickness = 1.5;
-    this.texture.addControl(this.crosshair);
+    this.root.innerHTML = `
+      <div class="hud-crosshair"></div>
+      <div class="hud-metrics">
+        <div class="hud-bar-shell hud-shield-shell"><div class="hud-bar-fill hud-shield-fill"></div></div>
+        <div class="hud-bar-shell hud-health-shell"><div class="hud-bar-fill hud-health-fill"></div></div>
+        <div class="hud-bar-shell hud-oxygen-shell"><div class="hud-bar-fill hud-oxygen-fill"></div></div>
+      </div>
+      <div class="hud-status-panel">
+        <div class="hud-status-text">VOICE LINK ACTIVE</div>
+      </div>
+      <div class="hud-message"></div>
+      <div class="hud-prompt"></div>
+      <div class="hud-ammo">0 / 0</div>
+      <div class="hud-level">NEURAL RANK 1</div>
+      <div class="hud-xp-shell"><div class="hud-xp-fill"></div></div>
+      <div class="hud-damage-flash"></div>
+    `;
 
-    // 2. Tactical Metrics (Health/Shield) - Top Center
-    const metricPanel = new Rectangle('metricPanel');
-    metricPanel.width = '300px';
-    metricPanel.height = '60px';
-    metricPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    metricPanel.top = '20px';
-    metricPanel.thickness = 0;
-    this.texture.addControl(metricPanel);
+    document.body.appendChild(this.root);
 
-    // Shield Bar (Bright Cyan)
-    const shieldContainer = new Rectangle('shieldContainer');
-    shieldContainer.width = '100%';
-    shieldContainer.height = '8px';
-    shieldContainer.background = 'rgba(0, 255, 255, 0.1)';
-    shieldContainer.thickness = 0;
-    shieldContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    metricPanel.addControl(shieldContainer);
-
-    this.shieldBar = new Rectangle('shieldBar');
-    this.shieldBar.width = '100%';
-    this.shieldBar.height = '100%';
-    this.shieldBar.background = '#00ffff';
-    this.shieldBar.thickness = 0;
-    this.shieldBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    shieldContainer.addControl(this.shieldBar);
-
-    // Health Bar (Industrial Red) - Below Shield
-    const healthContainer = new Rectangle('healthContainer');
-    healthContainer.width = '100%';
-    healthContainer.height = '4px';
-    healthContainer.top = '12px';
-    healthContainer.background = 'rgba(255, 68, 68, 0.1)';
-    healthContainer.thickness = 0;
-    healthContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    metricPanel.addControl(healthContainer);
-
-    this.healthBar = new Rectangle('healthBar');
-    this.healthBar.width = '100%';
-    this.healthBar.height = '100%';
-    this.healthBar.background = '#ff4444';
-    this.healthBar.thickness = 0;
-    this.healthBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    healthContainer.addControl(this.healthBar);
-
-    // Oxygen Bar (Warning Yellow/White) - Below Health
-    const oxygenContainer = new Rectangle('oxygenContainer');
-    oxygenContainer.width = '100%';
-    oxygenContainer.height = '2px';
-    oxygenContainer.top = '20px';
-    oxygenContainer.background = 'rgba(255, 255, 255, 0.05)';
-    oxygenContainer.thickness = 0;
-    oxygenContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    metricPanel.addControl(oxygenContainer);
-
-    this.oxygenBar = new Rectangle('oxygenBar');
-    this.oxygenBar.width = '100%';
-    this.oxygenBar.height = '100%';
-    this.oxygenBar.background = '#ffffff';
-    this.oxygenBar.thickness = 0;
-    this.oxygenBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    oxygenContainer.addControl(this.oxygenBar);
-
-    // 3. Status Panel (Mission Intel) - Top Right
-    this.statusPanel = new Rectangle('statusPanel');
-    this.statusPanel.width = '350px';
-    this.statusPanel.height = '40px';
-    this.statusPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    this.statusPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.statusPanel.top = '20px';
-    this.statusPanel.left = '-20px';
-    this.statusPanel.background = 'rgba(0, 0, 0, 0.4)';
-    this.statusPanel.color = 'rgba(0, 255, 255, 0.2)';
-    this.statusPanel.thickness = 1;
-    this.texture.addControl(this.statusPanel);
-
-    this.statusMission = new TextBlock('statusMission');
-    this.statusMission.text = 'VOICE LINK ACTIVE';
-    this.statusMission.color = '#00ffff';
-    this.statusMission.fontSize = 12;
-    this.statusMission.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.statusMission.left = '15px';
-    this.statusPanel.addControl(this.statusMission);
-
-    // 4. XP Bar - Bottom
-    const bottomPanel = new Rectangle('bottomPanel');
-    bottomPanel.width = '100%';
-    bottomPanel.height = '4px';
-    bottomPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    bottomPanel.background = 'rgba(255, 255, 255, 0.1)';
-    bottomPanel.thickness = 0;
-    this.texture.addControl(bottomPanel);
-
-    this.xpBar = new Rectangle('xpBar');
-    this.xpBar.width = '0%';
-    this.xpBar.height = '100%';
-    this.xpBar.background = '#ffaa00';
-    this.xpBar.thickness = 0;
-    this.xpBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    bottomPanel.addControl(this.xpBar);
-
-    this.levelLabel = new TextBlock('levelLabel', 'RANK 1');
-    this.levelLabel.color = '#ffaa00';
-    this.levelLabel.fontSize = 14;
-    this.levelLabel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    this.levelLabel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    this.levelLabel.top = '-20px';
-    this.levelLabel.left = '-20px';
-    this.texture.addControl(this.levelLabel);
-
-    // 5. Ammo Display - Bottom Right (above Level)
-    this.ammoLabel = new TextBlock('ammoLabel', '0/0');
-    this.ammoLabel.color = '#00ffff';
-    this.ammoLabel.fontSize = 24;
-    this.ammoLabel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    this.ammoLabel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    this.ammoLabel.top = '-50px';
-    this.ammoLabel.left = '-20px';
-    this.texture.addControl(this.ammoLabel);
-
-    // 6. Interaction
-    this.promptText = new TextBlock('prompt');
-    this.promptText.text = '';
-    this.promptText.color = '#ffffff';
-    this.promptText.fontSize = 20;
-    this.promptText.top = '100px';
-    this.texture.addControl(this.promptText);
+    this.promptText = this.root.querySelector('.hud-prompt') as HTMLDivElement;
+    this.messageText = this.root.querySelector('.hud-message') as HTMLDivElement;
+    this.statusPanel = this.root.querySelector('.hud-status-panel') as HTMLDivElement;
+    this.statusMission = this.root.querySelector('.hud-status-text') as HTMLDivElement;
+    this.healthBar = this.root.querySelector('.hud-health-fill') as HTMLDivElement;
+    this.shieldBar = this.root.querySelector('.hud-shield-fill') as HTMLDivElement;
+    this.oxygenBar = this.root.querySelector('.hud-oxygen-fill') as HTMLDivElement;
+    this.xpBar = this.root.querySelector('.hud-xp-fill') as HTMLDivElement;
+    this.levelLabel = this.root.querySelector('.hud-level') as HTMLDivElement;
+    this.ammoLabel = this.root.querySelector('.hud-ammo') as HTMLDivElement;
+    this.damageFlash = this.root.querySelector('.hud-damage-flash') as HTMLDivElement;
   }
 
   updateHealth(percent: number): void {
-    this.healthBar.width = `${percent * 100}%`;
+    this.healthBar.style.width = `${Math.max(0, Math.min(1, percent)) * 100}%`;
   }
 
   updateShield(percent: number): void {
-    this.shieldBar.width = `${percent * 100}%`;
-    this.shieldBar.background = percent < 0.2 ? '#ff3300' : '#00ffff';
+    const clamped = Math.max(0, Math.min(1, percent));
+    this.shieldBar.style.width = `${clamped * 100}%`;
+    this.shieldBar.style.background = clamped < 0.2 ? '#ff3300' : '#00ffff';
   }
 
   updateOxygen(current: number, max: number): void {
     const percent = Math.max(0, Math.min(1, current / max));
-    this.oxygenBar.width = `${percent * 100}%`;
-    
-    // Change color when low
-    if (percent < 0.25) {
-      this.oxygenBar.background = '#ffaa00';
-    } else {
-      this.oxygenBar.background = '#ffffff';
-    }
+    this.oxygenBar.style.width = `${percent * 100}%`;
+    this.oxygenBar.style.background = percent < 0.25 ? '#ffaa00' : '#ffffff';
   }
 
   public showDamageFlash(): void {
-    const flash = new Rectangle('flash');
-    flash.width = '100%';
-    flash.height = '100%';
-    flash.background = 'rgba(255, 0, 0, 0.2)';
-    flash.thickness = 0;
-    this.texture.addControl(flash);
+    this.damageFlash.classList.add('visible');
     setTimeout(() => {
-      flash.dispose();
+      this.damageFlash.classList.remove('visible');
     }, 100);
   }
 
   updateXP(percent: number, level: number): void {
-    this.xpBar.width = `${percent * 100}%`;
-    this.levelLabel.text = `NEURAL RANK ${level}`;
+    this.xpBar.style.width = `${Math.max(0, Math.min(1, percent)) * 100}%`;
+    this.levelLabel.textContent = `NEURAL RANK ${level}`;
   }
 
   public showMessage(text: string, durationMs = 2000): void {
     if (this.messageTimer) clearTimeout(this.messageTimer);
-    this.promptText.text = text.toUpperCase();
+    this.messageText.textContent = text.toUpperCase();
     this.messageTimer = setTimeout(() => {
-      this.promptText.text = '';
+      this.messageText.textContent = '';
     }, durationMs);
   }
 
   public showBossHealth(name: string, percent: number): void {
     if (!this.bossPanel) {
-      this.bossPanel = new Rectangle('bossPanel');
-      this.bossPanel.width = '500px';
-      this.bossPanel.height = '40px';
-      this.bossPanel.top = '100px'; 
-      this.bossPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-      this.bossPanel.background = 'rgba(0, 0, 0, 0.6)';
-      this.bossPanel.thickness = 0;
-      this.texture.addControl(this.bossPanel);
+      this.bossPanel = document.createElement('div');
+      this.bossPanel.className = 'hud-boss-panel';
+      this.bossPanel.innerHTML = `
+        <div class="hud-boss-label"></div>
+        <div class="hud-boss-shell"><div class="hud-boss-fill"></div></div>
+      `;
+      this.root.appendChild(this.bossPanel);
+      this.bossLabel = this.bossPanel.querySelector('.hud-boss-label') as HTMLDivElement;
+      this.bossBar = this.bossPanel.querySelector('.hud-boss-fill') as HTMLDivElement;
+    }
 
-      this.bossLabel = new TextBlock('bossLabel', name.toUpperCase());
-      this.bossLabel.color = '#ff3300';
-      this.bossLabel.fontSize = 12;
-      this.bossLabel.top = '-15px';
-      this.bossPanel.addControl(this.bossLabel);
-
-      this.bossBar = new Rectangle('bossBar');
-      this.bossBar.width = '100%';
-      this.bossBar.height = '4px';
-      this.bossBar.top = '5px';
-      this.bossBar.background = '#ff3300';
-      this.bossBar.thickness = 0;
-      this.bossBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-      this.bossPanel.addControl(this.bossBar);
+    if (this.bossLabel) {
+      this.bossLabel.textContent = name.toUpperCase();
     }
     this.updateBossHealth(percent);
   }
 
   public updateBossHealth(percent: number): void {
-    if (this.bossBar) {
-      this.bossBar.width = `${percent * 100}%`;
-      if (percent <= 0) {
-        this.bossPanel?.dispose();
-        this.bossPanel = null;
-        this.bossBar = null;
-        this.bossLabel = null;
-      }
+    if (!this.bossBar) return;
+    const clamped = Math.max(0, Math.min(1, percent));
+    this.bossBar.style.width = `${clamped * 100}%`;
+    if (clamped <= 0) {
+      this.bossPanel?.remove();
+      this.bossPanel = null;
+      this.bossBar = null;
+      this.bossLabel = null;
     }
   }
 
-  public updateInteractionTarget(interactable: any | null): void {
-    if (interactable) {
-      this.promptText.text = `[E] ${interactable.promptText.toUpperCase()}`;
-    } else {
-      this.promptText.text = '';
-    }
+  public updateInteractionTarget(interactable: { promptText: string } | null): void {
+    this.promptText.textContent = interactable ? `[E] ${interactable.promptText.toUpperCase()}` : '';
   }
 
   public setMissionStatus(title: string | null, status: string | null): void {
     if (title && status) {
-      this.statusMission.text = `${title.toUpperCase()} // ${status.toUpperCase()}`;
-      this.statusPanel.isVisible = true;
+      this.statusMission.textContent = `${title.toUpperCase()} // ${status.toUpperCase()}`;
+      this.statusPanel.style.display = 'flex';
     } else {
-      this.statusPanel.isVisible = false;
+      this.statusPanel.style.display = 'none';
     }
   }
 
   public showLevelUp(): void {
-    this.showMessage("NEURAL LINK UPGRADED: RANK UP", 5000);
+    this.showMessage('NEURAL LINK UPGRADED: RANK UP', 5000);
   }
 
   public updateAmmo(current: number, reserve: number): void {
-    this.ammoLabel.text = `${current} / ${reserve}`;
-    this.ammoLabel.color = current === 0 ? '#ff4444' : (current < 5 ? '#ffaa00' : '#00ffff');
+    this.ammoLabel.textContent = `${current} / ${reserve}`;
+    this.ammoLabel.style.color = current === 0 ? '#ff4444' : current < 5 ? '#ffaa00' : '#00ffff';
   }
 
   public dispose(): void {
-    this.texture.dispose();
+    if (this.messageTimer) clearTimeout(this.messageTimer);
+    this.root.remove();
   }
 }

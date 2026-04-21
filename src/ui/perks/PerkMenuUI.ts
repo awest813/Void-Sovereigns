@@ -1,43 +1,26 @@
 import { gameState } from '../../game/state/GameState';
 import { dataManager } from '../../game/state/DataManager';
+import { DomOverlay } from '../dom/DomOverlay';
 
 export class PerkMenuUI {
-  private container: HTMLDivElement;
+  private overlay: DomOverlay;
   private isVisible = false;
-
   private perks = dataManager.getPerks();
 
   constructor() {
-    this.container = document.createElement('div');
-    this.container.id = 'perk-menu-ui';
-    this.container.className = 'glass-panel';
-    this.container.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 700px;
-      height: 600px;
-      display: none;
-      z-index: 1000;
-      padding: 0;
-      overflow: hidden;
-    `;
-    document.body.appendChild(this.container);
-
-    (window as any).unlockPerk = (id: string) => this.handleUnlock(id);
-    (window as any).closePerks = () => this.hide();
+    this.overlay = new DomOverlay('perk-menu-ui', 'system-panel system-panel-medium');
+    this.overlay.panel.addEventListener('click', (event) => this.handleClick(event));
   }
 
   public show(): void {
     this.isVisible = true;
-    this.container.style.display = 'block';
+    this.overlay.show();
     this.render();
   }
 
   public hide(): void {
     this.isVisible = false;
-    this.container.style.display = 'none';
+    this.overlay.hide();
   }
 
   public toggle(): void {
@@ -45,52 +28,71 @@ export class PerkMenuUI {
     else this.show();
   }
 
+  public dispose(): void {
+    this.overlay.dispose();
+  }
+
+  private handleClick(event: Event): void {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
+    if (!target) return;
+
+    const action = target.dataset.action;
+    if (action === 'close') {
+      this.hide();
+      return;
+    }
+
+    if (action === 'unlock' && target.dataset.id) {
+      this.handleUnlock(target.dataset.id);
+    }
+  }
+
   private render(): void {
     const s = gameState.get();
-    
-    this.container.innerHTML = `
-      <div style="height: 70px; background: rgba(255, 255, 255, 0.03); display: flex; align-items: center; padding: 0 30px; border-bottom: 1px solid var(--border-cyan); justify-content: space-between;">
-        <span style="letter-spacing: 5px; font-weight: 300;">Neural Augmentation Interface</span>
-        <div style="display: flex; align-items: center; gap: 15px;">
-           <span style="font-size: 10px; opacity: 0.5;">AVAIL_NEURAL_CAPACITY</span>
-           <span style="color: var(--neon-cyan); font-size: 20px;">${s.perkPoints} PN</span>
+
+    this.overlay.panel.innerHTML = `
+      <div class="overlay-header">
+        <span class="overlay-header-title">Neural Augmentation Interface</span>
+        <div class="overlay-header-copy">
+          <span class="overlay-header-tag">AVAIL_NEURAL_CAPACITY</span>
+          <span class="overlay-value-cyan">${s.perkPoints} PN</span>
         </div>
       </div>
-
-      <div style="padding: 40px; height: 530px; overflow-y: auto;">
-        <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
-          ${this.perks.map(p => {
-             const has = gameState.hasPerk(p.id);
-             const canAfford = s.perkPoints > 0;
-             return `
-               <div style="padding: 20px; background: ${has ? 'rgba(0, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)'}; border: 1px solid ${has ? 'var(--neon-cyan)' : 'var(--border-cyan)'}; display: flex; align-items: center; gap: 20px;">
-                  <div style="font-size: 24px; opacity: ${has ? '1' : '0.3'};">${p.icon}</div>
-                  <div style="flex-grow: 1;">
-                     <div style="font-size: 14px; font-weight: 600; color: ${has ? 'var(--neon-cyan)' : '#fff'};">${p.id}</div>
-                     <div style="font-size: 11px; opacity: 0.5; margin-top: 4px;">${p.desc}</div>
+      <div class="overlay-scroll system-scroll">
+        <div class="system-list">
+          ${this.perks
+            .map((perk) => {
+              const has = gameState.hasPerk(perk.id);
+              const canAfford = s.perkPoints > 0;
+              return `
+                <article class="system-row ${has ? 'system-row-active' : ''}">
+                  <div class="system-icon ${has ? 'system-icon-active' : ''}">${perk.icon}</div>
+                  <div class="system-copy">
+                    <div class="system-title ${has ? 'system-title-active' : ''}">${perk.id}</div>
+                    <div class="system-description">${perk.description}</div>
                   </div>
-                  <button class="sci-fi-btn" style="font-size: 10px; padding: 6px 12px; ${has || !canAfford ? 'opacity: 0.3; cursor: not-allowed;' : ''}" onclick="${!has && canAfford ? `unlockPerk('${p.id}')` : ''}">
-                     ${has ? 'LINK_ACTIVE' : 'INITIALIZE'}
+                  <button
+                    class="sci-fi-btn system-action ${has || !canAfford ? 'system-action-disabled' : ''}"
+                    ${!has && canAfford ? `data-action="unlock" data-id="${perk.id}"` : ''}
+                    type="button"
+                  >
+                    ${has ? 'LINK_ACTIVE' : 'INITIALIZE'}
                   </button>
-               </div>
-             `;
-          }).join('')}
+                </article>
+              `;
+            })
+            .join('')}
         </div>
-
-        <div style="margin-top: 40px; text-align: center;">
-            <button class="sci-fi-btn" style="width: 200px; border-color: rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.5);" onclick="window.closePerks()">Disconnect</button>
+        <div class="system-footer">
+          <button class="sci-fi-btn overlay-muted-button" data-action="close" type="button">Disconnect</button>
         </div>
       </div>
     `;
   }
 
-  private handleUnlock(id: string) {
+  private handleUnlock(id: string): void {
     if (gameState.unlockPerk(id)) {
-       this.render();
+      this.render();
     }
-  }
-
-  public dispose(): void {
-    this.container.remove();
   }
 }

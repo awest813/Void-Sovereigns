@@ -5,15 +5,15 @@ import {
   Color3,
   Ray,
   Sound,
-  SceneLoader,
   AnimationGroup,
   AbstractMesh,
-  Mesh,
+  StandardMaterial,
 } from '@babylonjs/core';
 import type { HealthSystem } from '../state/HealthSystem';
 import type { HUD } from '../../ui/hud/HUD';
 import { gameState } from '../state/GameState';
 import { ASSETS } from '../AssetManifest';
+import { importMeshAsync } from '../BabylonAssetLoader';
 
 export enum AIState {
   PATROL,
@@ -23,12 +23,10 @@ export enum AIState {
 
 export class SecurityBot {
   private scene: Scene;
-  private mesh: Mesh;
   private target: TransformNode;
   private playerHealth: HealthSystem;
   
   private state: AIState = AIState.PATROL;
-  private speed = 0.05;
   private detectionRange = 10;
   private attackRange = 8;
   private patrolRadius = 5;
@@ -49,6 +47,7 @@ export class SecurityBot {
   // 3D Model & Animations
   private mesh: AbstractMesh | null = null;
   private anims: AnimationGroup[] = [];
+  private hum: Sound | null = null;
 
   private waypoints: Vector3[] = [];
   private waypointIndex = 0;
@@ -70,26 +69,26 @@ export class SecurityBot {
     this.loadModel(position);
 
     // Positional Audio
-    const hum = new Sound('bot_hum', 'https://www.babylonjs-live.com/assets/sounds/fan.wav', scene, null, {
+    this.hum = new Sound('bot_hum', 'https://www.babylonjs-live.com/assets/sounds/fan.wav', scene, null, {
       loop: true,
       autoplay: true,
       spatialSound: true,
       distanceModel: 'exponential',
       maxDistance: 10,
     });
-    // Attachment happens after load
 
     scene.onBeforeRenderObservable.add(() => this.update());
   }
 
   private async loadModel(position: Vector3) {
-    const result = await SceneLoader.ImportMeshAsync("", "", ASSETS.ENEMIES.SECURITY_MECH, this.scene);
+    const result = await importMeshAsync(ASSETS.ENEMIES.SECURITY_MECH, this.scene);
     this.mesh = result.meshes[0];
     this.mesh.position = position;
     this.mesh.scaling = new Vector3(0.5, 0.5, 0.5);
     this.mesh.checkCollisions = true;
     this.mesh.ellipsoid = new Vector3(0.5, 1, 0.5);
     this.anims = result.animationGroups;
+    this.hum?.attachToMesh(this.mesh);
     
     // Default to Idle animation
     this.playAnim('Idle', true);
@@ -114,6 +113,7 @@ export class SecurityBot {
   }
 
   private update(): void {
+    if (!this.mesh) return;
     const distToPlayer = Vector3.Distance(this.mesh.position, this.target.position);
 
     switch (this.state) {
@@ -150,6 +150,7 @@ export class SecurityBot {
   }
 
   private patrol(): void {
+    if (!this.mesh) return;
     this.applySteering(this.patrolTarget, true);
     
     if (Vector3.Distance(this.mesh.position, this.patrolTarget) < 1.5) {
@@ -163,6 +164,7 @@ export class SecurityBot {
   }
 
   private applySteering(target: Vector3, arrival = false): void {
+    if (!this.mesh) return;
     const desired = target.subtract(this.mesh.position);
     let speed = this.maxSpeed;
 
@@ -191,6 +193,7 @@ export class SecurityBot {
   }
 
   private attack(): void {
+    if (!this.mesh) return;
     const now = Date.now();
     if (now - this.lastFireTime > this.fireRate) {
       // Raycast check
@@ -215,11 +218,13 @@ export class SecurityBot {
   }
 
   private setEyeColor(color: Color3): void {
+    if (!this.mesh) return;
     const mat = (this.mesh.getChildMeshes()[0].material as StandardMaterial);
     mat.emissiveColor = color;
   }
 
   private triggerMuzzleEffect(): void {
+    if (!this.mesh) return;
     const mat = (this.mesh.getChildMeshes()[0].material as StandardMaterial);
     const oldColor = mat.emissiveColor.clone();
     mat.emissiveColor = new Color3(1, 1, 1);
@@ -229,6 +234,7 @@ export class SecurityBot {
   }
 
   public dispose(): void {
-    this.mesh.dispose();
+    this.mesh?.dispose();
+    this.hum?.dispose();
   }
 }
