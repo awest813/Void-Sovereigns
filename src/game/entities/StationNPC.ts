@@ -3,10 +3,11 @@ import {
   Vector3, 
   AbstractMesh, 
   AnimationGroup,
-  Sound
+  Sound,
 } from '@babylonjs/core';
 import { ASSETS } from '../AssetManifest';
 import { importMeshAsync } from '../BabylonAssetLoader';
+import { createLocalSound } from '../assets/ProceduralAssets';
 
 export type NPCType = 'guard' | 'engineer' | 'officer' | 'wanderer';
 
@@ -33,7 +34,7 @@ export class StationNPC {
     
     this.loadNPC(type, position, rotationY);
 
-    this.footstepSound = new Sound('npc_step', 'https://www.babylonjs-live.com/assets/sounds/step.wav', this.scene, null, {
+    this.footstepSound = createLocalSound('npc_step', this.scene, {
         volume: 0.1,
         maxDistance: 10,
         spatialSound: true,

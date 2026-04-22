@@ -1,5 +1,6 @@
-import { Scene, Sound } from '@babylonjs/core';
+import { Scene } from '@babylonjs/core';
 import type { HUD } from '../../ui/hud/HUD';
+import { createLocalSound } from '../assets/ProceduralAssets';
 
 const CHATTER_LINES = [
   'Mission Control: Check your oxygen levels.',
@@ -36,7 +37,7 @@ export class RadioChatter {
     this.hud.showMessage(`RADIO: ${line}`, 4000);
     
     // Play a short static burst sound
-    const staticBurst = new Sound('static', 'https://www.babylonjs-live.com/assets/sounds/ambient.wav', this.scene, undefined, {
+    const staticBurst = createLocalSound('static', this.scene, {
       volume: 0.1,
       autoplay: true,
     });

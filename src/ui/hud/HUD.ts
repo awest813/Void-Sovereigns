@@ -10,6 +10,8 @@ export class HUD {
   private xpBar: HTMLDivElement;
   private levelLabel: HTMLDivElement;
   private ammoLabel: HTMLDivElement;
+  private impulseBar: HTMLDivElement;
+  private impulseLabel: HTMLDivElement;
   private damageFlash: HTMLDivElement;
   private bossPanel: HTMLDivElement | null = null;
   private bossBar: HTMLDivElement | null = null;
@@ -33,6 +35,10 @@ export class HUD {
       <div class="hud-message"></div>
       <div class="hud-prompt"></div>
       <div class="hud-ammo">0 / 0</div>
+      <div class="hud-impulse">
+        <div class="hud-impulse-label">IMPULSE READY</div>
+        <div class="hud-impulse-shell"><div class="hud-impulse-fill"></div></div>
+      </div>
       <div class="hud-level">NEURAL RANK 1</div>
       <div class="hud-xp-shell"><div class="hud-xp-fill"></div></div>
       <div class="hud-damage-flash"></div>
@@ -50,6 +56,8 @@ export class HUD {
     this.xpBar = this.root.querySelector('.hud-xp-fill') as HTMLDivElement;
     this.levelLabel = this.root.querySelector('.hud-level') as HTMLDivElement;
     this.ammoLabel = this.root.querySelector('.hud-ammo') as HTMLDivElement;
+    this.impulseBar = this.root.querySelector('.hud-impulse-fill') as HTMLDivElement;
+    this.impulseLabel = this.root.querySelector('.hud-impulse-label') as HTMLDivElement;
     this.damageFlash = this.root.querySelector('.hud-damage-flash') as HTMLDivElement;
   }
 
@@ -140,6 +148,16 @@ export class HUD {
   public updateAmmo(current: number, reserve: number): void {
     this.ammoLabel.textContent = `${current} / ${reserve}`;
     this.ammoLabel.style.color = current === 0 ? '#ff4444' : current < 5 ? '#ffaa00' : '#00ffff';
+  }
+
+  public updateImpulse(percent: number, ready: boolean, charges = 1, maxCharges = 1): void {
+    const clamped = Math.max(0, Math.min(1, percent));
+    this.impulseBar.style.width = `${clamped * 100}%`;
+    this.impulseBar.style.background = ready ? '#00ffff' : '#ffaa00';
+    this.impulseLabel.textContent = ready
+      ? `IMPULSE ${charges}/${maxCharges} [Q]`
+      : 'IMPULSE RECHARGING';
+    this.impulseLabel.style.color = ready ? '#00ffff' : '#ffaa00';
   }
 
   public dispose(): void {

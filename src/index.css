@@ -235,6 +235,35 @@ canvas#game-canvas {
   letter-spacing: 0.06em;
 }
 
+.hud-impulse {
+  position: absolute;
+  left: 20px;
+  bottom: 24px;
+  width: 190px;
+}
+
+.hud-impulse-label {
+  color: #00ffff;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+
+.hud-impulse-shell {
+  height: 4px;
+  width: 100%;
+  background: rgba(0, 255, 255, 0.12);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.hud-impulse-fill {
+  width: 100%;
+  height: 100%;
+  background: #00ffff;
+  transition: width 80ms linear, background 160ms linear;
+}
+
 .hud-level {
   position: absolute;
   right: 20px;
@@ -751,6 +780,198 @@ canvas#game-canvas {
   font-size: 11px;
   opacity: 0.5;
   line-height: 1.4;
+}
+
+.inventory-root {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 20px;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.inventory-panel {
+  width: min(420px, calc(100vw - 40px));
+  height: calc(100vh - 40px);
+}
+
+.inventory-header {
+  padding: 0 24px;
+}
+
+.inventory-link-active {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 255, 255, 0.05);
+}
+
+.inventory-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-bottom: 1px solid var(--border-cyan);
+}
+
+.inventory-tab {
+  border: none;
+  border-right: 1px solid var(--border-cyan);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.55);
+  padding: 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-family: 'Outfit', sans-serif;
+}
+
+.inventory-tab:last-child {
+  border-right: none;
+}
+
+.inventory-tab-active {
+  color: var(--neon-cyan);
+  background: rgba(0, 255, 255, 0.08);
+}
+
+.inventory-scroll {
+  padding: 20px;
+}
+
+.inventory-empty {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.32;
+}
+
+.inventory-empty-symbol {
+  font-size: 32px;
+  letter-spacing: 0.2em;
+  margin-bottom: 16px;
+}
+
+.inventory-empty-copy {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+}
+
+.inventory-item-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-cyan);
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.inventory-item-top,
+.inventory-item-bottom,
+.inventory-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inventory-item-top {
+  margin-bottom: 8px;
+}
+
+.inventory-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.inventory-item-value,
+.inventory-footer-row strong {
+  color: var(--neon-orange);
+  font-size: 12px;
+}
+
+.inventory-saturation,
+.inventory-field-note {
+  font-size: 10px;
+  opacity: 0.42;
+}
+
+.inventory-mini-action {
+  padding: 4px 10px;
+  font-size: 10px;
+  border-radius: 2px;
+}
+
+.inventory-footer {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid var(--border-cyan);
+}
+
+.inventory-footer-row {
+  margin-bottom: 5px;
+}
+
+.inventory-footer-row span,
+.inventory-footer-hint {
+  font-size: 10px;
+  opacity: 0.5;
+  letter-spacing: 0.16em;
+}
+
+.inventory-footer-hint {
+  text-align: center;
+  margin-top: 18px;
+}
+
+.inventory-section {
+  margin-bottom: 30px;
+}
+
+.inventory-weapon-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.inventory-weapon-card {
+  border: 1px solid var(--border-cyan);
+  background: rgba(255, 255, 255, 0.02);
+  color: #fff;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+}
+
+.inventory-weapon-card-active {
+  border-color: var(--neon-cyan);
+  background: rgba(0, 255, 255, 0.07);
+}
+
+.inventory-weapon-name {
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.inventory-weapon-ammo {
+  color: var(--neon-orange);
+  font-size: 11px;
+}
+
+.inventory-weapon-state {
+  grid-column: 1 / -1;
+  color: var(--neon-cyan);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  opacity: 0.75;
+}
+
+.inventory-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 @media (max-width: 900px) {

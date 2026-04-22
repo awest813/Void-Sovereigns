@@ -1,4 +1,5 @@
-import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, ParticleSystem, Texture, Color4, Ray } from '@babylonjs/core';
+import { Scene, Vector3, MeshBuilder, StandardMaterial, Color3, ParticleSystem, Color4, Ray } from '@babylonjs/core';
+import { getParticleTexture } from '../assets/ProceduralAssets';
 
 export class GravityGrenade {
   private scene: Scene;
@@ -62,7 +63,7 @@ export class GravityGrenade {
 
     // 2. Particles
     const ps = new ParticleSystem('grav_particles', 100, this.scene);
-    ps.particleTexture = new Texture('https://www.babylonjs-live.com/assets/textures/flare.png', this.scene);
+    ps.particleTexture = getParticleTexture(this.scene);
     ps.emitter = pos;
     ps.minEmitBox = new Vector3(-1, -1, -1);
     ps.maxEmitBox = new Vector3(1, 1, 1);

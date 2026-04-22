@@ -16,6 +16,9 @@ export class ExtractionSystem {
   private duration = 15; // 15 seconds to hold
   private spawnTime = 5;
   private lastSpawn = 0;
+  private lastPressureSpawn = 0;
+  private pressureSpawnTime = 11;
+  private pressureAnnounced = false;
 
   constructor(scene: Scene, hud: HUD, extractPoint: Mesh, health: HealthSystem) {
     this.scene = scene;
@@ -38,6 +41,21 @@ export class ExtractionSystem {
     const playerPos = this.scene.activeCamera?.position;
     if (!playerPos) return;
 
+    const delta = this.scene.getEngine().getDeltaTime() * 0.001;
+
+    if (!this.pressureAnnounced) {
+      this.pressureAnnounced = true;
+      this.hud.showMessage('FACILITY ALERT: OBJECTIVE REMOVED. SECURITY IS HUNTING.', 4000);
+    }
+
+    if (s.missionStatus === 'objectiveComplete') {
+      this.lastPressureSpawn += delta;
+      if (this.lastPressureSpawn >= this.pressureSpawnTime) {
+        this.lastPressureSpawn = 0;
+        this.spawnAmbushBot(playerPos, true);
+      }
+    }
+
     const dist = Vector3.Distance(playerPos, this.extractPoint.position);
     
     if (dist < 3) {
@@ -51,7 +69,6 @@ export class ExtractionSystem {
         this.hud.showMessage('ESTABLISHING UPLINK... HOLD THE ZONE', 3000);
       }
       
-      const delta = this.scene.getEngine().getDeltaTime() * 0.001;
       this.progress += delta;
       
       this.hud.showMessage(`EXTRACTION PROGRESS: ${Math.floor((this.progress / this.duration) * 100)}%`, 500);
@@ -59,7 +76,7 @@ export class ExtractionSystem {
       // Spawn aggressive drone during extraction
       if (this.progress > this.lastSpawn + this.spawnTime) {
         this.lastSpawn = this.progress;
-        this.spawnAmbushBot();
+        this.spawnAmbushBot(playerPos, true);
       }
 
       if (this.progress >= this.duration) {
@@ -72,14 +89,15 @@ export class ExtractionSystem {
     }
   }
 
-  private spawnAmbushBot(): void {
-    const spawnPos = this.extractPoint.position.add(new Vector3(
+  private spawnAmbushBot(anchor = this.extractPoint.position, alert = false): void {
+    const spawnPos = anchor.add(new Vector3(
       (Math.random()-0.5)*10,
       1,
       (Math.random()-0.5)*10
     ));
-    new SecurityBot(this.scene, spawnPos, this.scene.activeCamera as any, this.health, this.hud);
-    this.hud.showMessage('WARNING: SECURITY REINFORCEMENTS DETECTED', 2000);
+    const bot = new SecurityBot(this.scene, spawnPos, this.scene.activeCamera as any, this.health, this.hud);
+    if (alert) bot.forceAlert(anchor);
+    this.hud.showMessage('WARNING: SECURITY REINFORCEMENTS TRACKING YOUR SIGNAL', 2200);
   }
 
   private completeExtraction(): void {

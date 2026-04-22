@@ -8,11 +8,11 @@ import {
   AbstractMesh,
   Mesh,
   ParticleSystem,
-  Texture,
   Color4
 } from '@babylonjs/core';
 import { ASSETS } from '../AssetManifest';
 import { DungeonGenerator, type RoomNode } from './DungeonGenerator';
+import { RoomActivitySystem } from './RoomActivitySystem';
 import { InteractionSystem } from '../InteractionSystem';
 import { HUD } from '../../ui/hud/HUD';
 import { HealthSystem } from '../state/HealthSystem';
@@ -26,6 +26,8 @@ import { RadioChatter } from '../effects/RadioChatter';
 import { gameState } from '../state/GameState';
 import { TABLES } from '../state/LootTable';
 import { importMeshAsync } from '../BabylonAssetLoader';
+import { getParticleTexture } from '../assets/ProceduralAssets';
+import { getGameAssetManager } from '../assets/GameAssetManager';
 
 export interface MissionZoneLandmarks {
   objectiveItemOrNode: AbstractMesh | TransformNode;
@@ -33,22 +35,9 @@ export interface MissionZoneLandmarks {
   lootInteractables: Interactable[];
 }
 
-// Optimization: Model Cache
-const MODEL_CACHE: Record<string, AbstractMesh> = {};
-
 async function getModel(scene: Scene, path: string): Promise<AbstractMesh> {
-  if (MODEL_CACHE[path]) {
-    const clone = MODEL_CACHE[path].clone(`${path}_clone`, null);
-    if (clone) return clone;
-  }
   const result = await importMeshAsync(path, scene);
-  const mainMesh = result.meshes[0];
-  mainMesh.setEnabled(false); // Hide the template
-  MODEL_CACHE[path] = mainMesh;
-  
-  const instance = mainMesh.clone(`${path}_initial`, null);
-  instance!.setEnabled(true);
-  return instance!;
+  return result.meshes[0];
 }
 
 export async function buildMissionZone(
@@ -65,6 +54,8 @@ export async function buildMissionZone(
   const generator = new DungeonGenerator();
   const rooms = generator.generate(Math.random());
   const waypoints = rooms.map(r => r.position);
+  const assetManager = getGameAssetManager(scene);
+  new RoomActivitySystem(scene, rooms, player);
 
   new RadioChatter(scene, hud);
 
@@ -72,11 +63,21 @@ export async function buildMissionZone(
   let extractionPoint: any;
   const lootInteractables: Interactable[] = [];
 
-  // Pre-load common structural assets to avoid UI freeze
-  await Promise.all([
-     getModel(scene, ASSETS.ENVIRONMENT.WALL),
-     getModel(scene, ASSETS.ENVIRONMENT.FLOOR),
-     getModel(scene, ASSETS.ENVIRONMENT.CRATE),
+  await assetManager.preloadAssets('environment', [
+    ASSETS.ENVIRONMENT.WALL,
+    ASSETS.ENVIRONMENT.FLOOR,
+    ASSETS.ENVIRONMENT.CONSOLE,
+    ASSETS.ENVIRONMENT.CRATE,
+    ASSETS.SHIPS.DROPSHIP,
+  ]);
+
+  await assetManager.preloadAssets('containers', [
+    ASSETS.ENEMIES.SECURITY_MECH,
+    ASSETS.PICKUPS.AMMO,
+    ASSETS.PICKUPS.HEALTH,
+    ASSETS.WEAPONS.PISTOL,
+    ASSETS.WEAPONS.SHOTGUN,
+    ASSETS.WEAPONS.SMG,
   ]);
 
   for (const room of rooms) {
@@ -85,18 +86,23 @@ export async function buildMissionZone(
     wall.position = room.position;
     wall.scaling = new Vector3(room.size.x/2.5, room.size.y/2.5, room.size.z/2.5);
     wall.checkCollisions = true;
+    markRoomOccupant(wall, room);
 
     const floor = await getModel(scene, ASSETS.ENVIRONMENT.FLOOR);
     floor.position = room.position.subtract(new Vector3(0, 1.5, 0));
     floor.scaling = new Vector3(room.size.x/2.5, 1, room.size.z/2.5);
+    markRoomOccupant(floor, room);
 
     // 2. Room Content
-    if (room.id === 'objective') {
+    if (room.type === 'Objective') {
        objectiveItemOrNode = await getModel(scene, ASSETS.ENVIRONMENT.CONSOLE);
        objectiveItemOrNode.position = room.position.add(new Vector3(0, 0.5, 0));
        objectiveItemOrNode.scaling = new Vector3(0.5, 0.5, 0.5);
+       markRoomOccupant(objectiveItemOrNode, room);
        
-       new PointLight('obj_light', objectiveItemOrNode.position, scene).intensity = 1.0;
+       const objectiveLight = new PointLight('obj_light', objectiveItemOrNode.position, scene);
+       objectiveLight.intensity = 1.0;
+       objectiveLight.metadata = { roomId: room.id };
 
        if (Math.random() > 0.7) {
           hud.showMessage("CAUTION: APEX ENTITY DETECTED.", 5000);
@@ -104,31 +110,47 @@ export async function buildMissionZone(
        }
     }
 
-    if (room.type === 'Quarters') {
+    if (room.type === 'Extraction') {
        extractionPoint = await getModel(scene, ASSETS.SHIPS.DROPSHIP);
        extractionPoint.position = room.position.add(new Vector3(0, -1.5, room.size.z/2 - 4));
        extractionPoint.scaling = new Vector3(1.5, 1.5, 1.5);
        extractionPoint.rotation = new Vector3(0, Math.PI, 0);
+       markRoomOccupant(extractionPoint, room);
     }
 
-    if (room.type === 'Engine') {
+    if (room.type === 'Engine' || room.type === 'Junction') {
        createSteamLeak(scene, room.position.add(new Vector3(0, 0, 0)));
        new SecurityBot(scene, room.position.add(new Vector3(0, 1.5, 0)), player, health, hud, waypoints);
     }
 
     // 3. Loot
-    if (Math.random() > 0.5 && room.id !== 'hub' && room.id !== 'objective') {
+    if ((room.type === 'Loot' || Math.random() > 0.65) && room.type !== 'Spawn' && room.type !== 'Objective') {
        const l = await spawnLootBox(scene, room, interactionSystem, hud);
        lootInteractables.push(l);
     }
 
     // Pickups (20% chance)
-    if (Math.random() > 0.8 && room.id !== 'hub') {
+    if ((room.type === 'Airlock' || Math.random() > 0.8) && room.type !== 'Spawn') {
        const type = Math.random() > 0.5 ? 'medkit' : 'ammo';
        await spawnPickup(scene, room, interactionSystem, hud, health, type);
     }
 
+    addExtractionBreadcrumb(scene, room);
     createDustParticles(scene, room.position, room.size, biome);
+  }
+
+  if (!objectiveItemOrNode) {
+    const fallbackRoom = rooms.find((room) => room.criticalPath && room.type !== 'Spawn') ?? rooms[rooms.length - 1];
+    objectiveItemOrNode = await getModel(scene, ASSETS.ENVIRONMENT.CONSOLE);
+    objectiveItemOrNode.position = fallbackRoom.position.add(new Vector3(0, 0.5, 0));
+    markRoomOccupant(objectiveItemOrNode, fallbackRoom);
+  }
+
+  if (!extractionPoint) {
+    const fallbackRoom = rooms.filter((room) => room.criticalPath).sort((a, b) => b.depth - a.depth)[0];
+    extractionPoint = await getModel(scene, ASSETS.SHIPS.DROPSHIP);
+    extractionPoint.position = fallbackRoom.position.add(new Vector3(0, -1.5, fallbackRoom.size.z / 2 - 4));
+    markRoomOccupant(extractionPoint, fallbackRoom);
   }
 
   return { objectiveItemOrNode, extractionPoint, lootInteractables };
@@ -160,7 +182,7 @@ async function spawnLootBox(scene: Scene, room: RoomNode, is: InteractionSystem,
 }
 
 async function spawnPickup(scene: Scene, room: RoomNode, is: InteractionSystem, hud: HUD, health: HealthSystem, type: 'medkit' | 'ammo'): Promise<void> {
-  const mesh = await getModel(scene, ASSETS.ENVIRONMENT.CRATE);
+  const mesh = await getModel(scene, type === 'medkit' ? ASSETS.PICKUPS.HEALTH : ASSETS.PICKUPS.AMMO);
   mesh.position = room.position.add(new Vector3((Math.random()-0.5)*(room.size.x-4), 0.3, (Math.random()-0.5)*(room.size.z-4)));
   mesh.scaling = new Vector3(0.4, 0.4, 0.4);
 
@@ -196,7 +218,7 @@ async function spawnPickup(scene: Scene, room: RoomNode, is: InteractionSystem, 
 
 function createDustParticles(scene: Scene, position: Vector3, size: Vector3, biome: string): void {
   const ps = new ParticleSystem('dust', 100, scene);
-  ps.particleTexture = new Texture('https://www.babylonjs-live.com/assets/textures/flare.png', scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position;
   ps.minEmitBox = new Vector3(-size.x/2, 0, -size.z/2);
   ps.maxEmitBox = new Vector3(size.x/2, size.y, size.z/2);
@@ -204,4 +226,36 @@ function createDustParticles(scene: Scene, position: Vector3, size: Vector3, bio
   ps.minSize = 0.01; ps.maxSize = 0.05;
   ps.emitRate = 10;
   ps.start();
+}
+
+function markRoomOccupant(mesh: AbstractMesh, room: RoomNode): void {
+  mesh.metadata = {
+    ...(mesh.metadata ?? {}),
+    roomId: room.id,
+    roomConnections: room.connections,
+    roomShape: room.shape,
+    criticalPath: room.criticalPath,
+    roomCullable: true,
+  };
+  mesh.getChildMeshes().forEach((child) => {
+    child.metadata = {
+      ...(child.metadata ?? {}),
+      roomId: room.id,
+      roomConnections: room.connections,
+      roomShape: room.shape,
+      criticalPath: room.criticalPath,
+      roomCullable: true,
+    };
+  });
+}
+
+function addExtractionBreadcrumb(scene: Scene, room: RoomNode): void {
+  if (!room.criticalPath || room.type === 'Spawn') return;
+  const light = new PointLight(`breadcrumb_${room.id}`, room.position.add(new Vector3(0, 2.2, 0)), scene);
+  light.intensity = Math.min(0.55, 0.08 + room.depth * 0.04);
+  light.range = 5;
+  light.diffuse = room.type === 'Extraction'
+    ? new Color3(0.1, 1, 0.8)
+    : new Color3(0.8, 0.12, 0.08);
+  light.metadata = { roomId: room.id };
 }

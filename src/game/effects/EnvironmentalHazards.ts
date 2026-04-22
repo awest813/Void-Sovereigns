@@ -2,17 +2,16 @@ import {
   Scene,
   Vector3,
   ParticleSystem,
-  Texture,
   Color4,
   PointLight,
-  Sound,
 } from '@babylonjs/core';
+import { createLocalSound, getParticleTexture } from '../assets/ProceduralAssets';
 
 export function createSteamLeak(scene: Scene, position: Vector3): void {
   const particleSystem = new ParticleSystem('steam', 200, scene);
   
   // Texture
-  particleSystem.particleTexture = new Texture('https://www.babylonjs-live.com/assets/Flare.png', scene);
+  particleSystem.particleTexture = getParticleTexture(scene);
   
   // Position
   particleSystem.emitter = position;
@@ -41,7 +40,7 @@ export function createSteamLeak(scene: Scene, position: Vector3): void {
   particleSystem.start();
 
   // Positional Hiss
-  const hiss = new Sound('steam_hiss', 'https://www.babylonjs-live.com/assets/sounds/ambient.wav', scene, null, {
+  const hiss = createLocalSound('steam_hiss', scene, {
     loop: true,
     autoplay: true,
     spatialSound: true,

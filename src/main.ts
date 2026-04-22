@@ -193,12 +193,14 @@ async function main() {
     gameState.update({ currentScene: 'hub' });
     gameState.save();
 
+    hud = new modules.HUD();
     const player: FirstPersonController = new modules.FirstPersonController(scene, engine.canvas, {
       position: new Vector3(0, 1.7, 0),
+      onImpulseChange: (percent, ready, charges, maxCharges) => hud?.updateImpulse(percent, ready, charges, maxCharges),
+      onImpulseUsed: (charges, maxCharges) => hud?.showMessage(`IMPULSE DASH ENGAGED // ${charges}/${maxCharges}`, 900),
     });
 
     interactionSystem = new modules.InteractionSystem(scene, player);
-    hud = new modules.HUD();
     interactionSystem.setOnTargetChange((target) => hud?.updateInteractionTarget(target));
 
     refreshHudStatus();
@@ -321,16 +323,22 @@ async function main() {
     const modules = await loadMissionModules();
     const scene = engine.createScene();
 
+    hud = new modules.HUD();
     const player: FirstPersonController = new modules.FirstPersonController(scene, engine.canvas, {
       position: new Vector3(0, 1.7, 7.5),
+      onImpulseChange: (percent, ready, charges, maxCharges) => hud?.updateImpulse(percent, ready, charges, maxCharges),
+      onImpulseUsed: (charges, maxCharges) => hud?.showMessage(`IMPULSE DASH ENGAGED // ${charges}/${maxCharges}`, 900),
     });
 
     interactionSystem = new modules.InteractionSystem(scene, player);
-    hud = new modules.HUD();
     interactionSystem.setOnTargetChange((target) => hud?.updateInteractionTarget(target));
 
     const health: HealthSystem = new modules.HealthSystem({
       maxHealth: 100,
+      canAvoidDamage: () => player.isDodging(),
+      onDamageAvoided: () => {
+        hud?.showMessage('DODGE WINDOW: DAMAGE EVADED', 900);
+      },
       onDamage: (current, max) => {
         hud?.updateHealth(current / max);
         hud?.showDamageFlash();

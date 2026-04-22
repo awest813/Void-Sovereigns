@@ -33,6 +33,10 @@ export class BossCenturion {
   private fireRate = 400; // Fast volley
   private pulseCooldown = 5000; // 5 seconds
   private lastPulseTime = 0;
+  private phase: 1 | 2 | 3 = 1;
+  private isChargingPulse = false;
+  private pulseChargeStartedAt = 0;
+  private pulseChargeMs = 900;
 
   constructor(scene: Scene, position: Vector3, target: TransformNode, playerHealth: HealthSystem, hud: HUD) {
     this.scene = scene;
@@ -62,6 +66,7 @@ export class BossCenturion {
         if (this.isDead) return;
         this.health -= damage;
         this.hud.updateBossHealth(this.health / this.maxHealth);
+        this.updatePhase();
         
         if (this.health <= 0) {
            this.die();
@@ -88,13 +93,18 @@ export class BossCenturion {
 
     // 2. Shield Pulse (Knockback)
     const now = Date.now();
-    if (dist < 4 && now - this.lastPulseTime > this.pulseCooldown) {
+    if (!this.isChargingPulse && dist < 5 && now - this.lastPulseTime > this.pulseCooldown) {
+        this.beginShieldPulse();
+    }
+
+    if (this.isChargingPulse && now - this.pulseChargeStartedAt > this.pulseChargeMs) {
         this.shieldPulse();
         this.lastPulseTime = now;
+        this.isChargingPulse = false;
     }
 
     // 3. Attack
-    if (dist < 15 && now - this.lastFireTime > this.fireRate) {
+    if (!this.isChargingPulse && dist < 15 && now - this.lastFireTime > this.fireRate && this.hasLineOfSight()) {
         this.attack();
         this.lastFireTime = now;
     }
@@ -111,23 +121,63 @@ export class BossCenturion {
   }
 
   private shieldPulse() {
-    this.hud.showMessage("WARNING: KINETICS PULSE DETECTED", 2000);
-    // Visual effect (Placeholder: large red flash or particles)
-    
+    if (!this.mesh) return;
+    this.hud.showMessage("KINETIC PULSE RELEASED", 1600);
+
     // Physics Pushback logic
-    const pushDir = this.target.position.subtract(this.mesh!.position).normalize();
+    const pushDir = this.target.position.subtract(this.mesh.position).normalize();
     // We apply it directly to the player position for simplicity in this prototype
     this.target.position.addInPlace(pushDir.scale(5)); 
-    this.playerHealth.takeDamage(15);
+    this.playerHealth.takeDamage(this.phase >= 3 ? 25 : 15);
   }
 
   private attack() {
+    if (!this.mesh) return;
     // Shooting sound & logic
-    const ray = new Ray(this.mesh!.position.add(new Vector3(0, 1, 0)), this.target.position.subtract(this.mesh!.position).normalize(), 20);
-    const hit = this.scene.pickWithRay(ray);
-    if (hit?.hit) {
-      this.playerHealth.takeDamage(5);
+    const origin = this.mesh.position.add(new Vector3(0, 1, 0));
+    const ray = new Ray(origin, this.target.position.subtract(origin).normalize(), 20);
+    const hit = this.scene.pickWithRay(ray, (mesh) => mesh !== this.mesh && (mesh.metadata?.isPlayer || mesh.checkCollisions));
+    if (hit?.hit && hit.pickedMesh?.metadata?.isPlayer) {
+      this.playerHealth.takeDamage(this.phase >= 2 ? 8 : 5);
     }
+  }
+
+  private beginShieldPulse(): void {
+    this.isChargingPulse = true;
+    this.pulseChargeStartedAt = Date.now();
+    this.velocity.scaleInPlace(0.25);
+    this.hud.showMessage("WARNING: KINETIC PULSE CHARGING", this.pulseChargeMs);
+    this.setEmissive(new Color3(1, 0.8, 0));
+  }
+
+  private updatePhase(): void {
+    const healthPercent = this.health / this.maxHealth;
+    const nextPhase: 1 | 2 | 3 = healthPercent < 0.33 ? 3 : healthPercent < 0.66 ? 2 : 1;
+    if (nextPhase === this.phase) return;
+
+    this.phase = nextPhase;
+    this.maxSpeed = this.phase === 3 ? 0.07 : this.phase === 2 ? 0.055 : 0.04;
+    this.fireRate = this.phase === 3 ? 260 : this.phase === 2 ? 330 : 400;
+    this.pulseCooldown = this.phase === 3 ? 3600 : this.phase === 2 ? 4400 : 5000;
+    this.hud.showMessage(`CENTURION PHASE ${this.phase}: THREAT ESCALATING`, 2500);
+    this.setEmissive(this.phase === 3 ? new Color3(1, 0.1, 0.9) : new Color3(1, 0.25, 0));
+  }
+
+  private hasLineOfSight(): boolean {
+    if (!this.mesh) return false;
+    const origin = this.mesh.position.add(new Vector3(0, 1, 0));
+    const direction = this.target.position.subtract(origin).normalize();
+    const ray = new Ray(origin, direction, 20);
+    const hit = this.scene.pickWithRay(ray, (mesh) => mesh !== this.mesh && (mesh.metadata?.isPlayer || mesh.checkCollisions));
+    return Boolean(hit?.hit && hit.pickedMesh?.metadata?.isPlayer);
+  }
+
+  private setEmissive(color: Color3): void {
+    this.mesh?.getChildMeshes().forEach(m => {
+      if (m.material instanceof StandardMaterial) {
+        m.material.emissiveColor = color;
+      }
+    });
   }
 
   private die() {

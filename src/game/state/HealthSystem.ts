@@ -3,6 +3,8 @@ import { gameState } from './GameState';
 export interface HealthSystemOptions {
   maxHealth: number;
   onDamage?: (current: number, max: number) => void;
+  canAvoidDamage?: () => boolean;
+  onDamageAvoided?: () => void;
   onHeal?: (current: number, max: number) => void;
   onDeath?: () => void;
 }
@@ -30,6 +32,12 @@ export class HealthSystem {
 
   takeDamage(amount: number): void {
     if (this.currentHealth <= 0) return;
+    if (this.options.canAvoidDamage?.()) {
+      this.lastDamageTime = Date.now();
+      this.options.onDamageAvoided?.();
+      return;
+    }
+
     this.lastDamageTime = Date.now();
     
     let remainingDamage = amount;

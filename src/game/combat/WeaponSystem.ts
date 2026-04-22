@@ -5,7 +5,6 @@ import {
   Color3,
   PointLight,
   ParticleSystem,
-  Texture,
   Color4,
   AbstractMesh,
 } from '@babylonjs/core';
@@ -15,6 +14,7 @@ import { GravityGrenade } from './GravityGrenade';
 import { ASSETS } from '../AssetManifest';
 import { HUD } from '../../ui/hud/HUD';
 import { importMeshAsync } from '../BabylonAssetLoader';
+import { getParticleTexture } from '../assets/ProceduralAssets';
 
 export type WeaponRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
@@ -206,10 +206,11 @@ export class WeaponSystem {
   }
 
   private performRaycast(spread: number): void {
+    const adjustedSpread = spread * this.player.getAccuracyPenalty(this.scene);
     const ray = this.player.getForwardRay(50);
-    ray.direction.x += (Math.random() - 0.5) * spread;
-    ray.direction.y += (Math.random() - 0.5) * spread;
-    ray.direction.z += (Math.random() - 0.5) * spread;
+    ray.direction.x += (Math.random() - 0.5) * adjustedSpread;
+    ray.direction.y += (Math.random() - 0.5) * adjustedSpread;
+    ray.direction.z += (Math.random() - 0.5) * adjustedSpread;
 
     const hit = this.scene.pickWithRay(ray);
     if (hit?.hit && hit.pickedMesh) {
@@ -288,7 +289,7 @@ export class WeaponSystem {
 
   private createImpactEffect(position: Vector3): void {
     const ps = new ParticleSystem('impact_sparks', 10, this.scene);
-    ps.particleTexture = new Texture('https://www.babylonjs-live.com/assets/textures/flare.png', this.scene);
+    ps.particleTexture = getParticleTexture(this.scene);
     ps.emitter = position;
     ps.color1 = new Color4(1, 0.4, 0, 1);
     ps.manualEmitCount = 5;

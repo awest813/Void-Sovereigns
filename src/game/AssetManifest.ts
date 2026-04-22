@@ -24,6 +24,10 @@ export const ASSETS = {
     CONSOLE: '/assets/env/Modular_Console.glb',
     CRATE: '/assets/env/Modular_Crate.glb',
   },
+  PICKUPS: {
+    HEALTH: '/assets/pickups/Health.glb',
+    AMMO: '/assets/pickups/Ammo.glb',
+  },
   VEHICLES: {
     TRUCK: '/assets/vehicles/SciFi_Truck.glb',
     CRANE: '/assets/vehicles/Hangar_Crane.glb',

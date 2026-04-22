@@ -16,11 +16,29 @@ export class GameEngine {
     document.body.appendChild(canvas);
 
     let engine: Engine | WebGPUEngine;
-    if (navigator.gpu) {
-      const { WebGPUEngine } = await import('@babylonjs/core/Engines/webgpuEngine');
-      const webgpuEngine = new WebGPUEngine(canvas, { antialias: true, adaptToDeviceRatio: true });
-      await webgpuEngine.initAsync();
-      engine = webgpuEngine;
+    const rendererPreference = new URLSearchParams(window.location.search).get('renderer');
+    const forceWebGL = rendererPreference === 'webgl';
+    const forceWebGPU = rendererPreference === 'webgpu';
+    const shouldAttemptWebGPU =
+      !forceWebGL &&
+      Boolean(navigator.gpu) &&
+      (forceWebGPU || !navigator.webdriver);
+
+    if (shouldAttemptWebGPU) {
+      try {
+        const adapter = await navigator.gpu?.requestAdapter();
+        if (!adapter) {
+          throw new Error('No WebGPU adapter available.');
+        }
+
+        const { WebGPUEngine } = await import('@babylonjs/core/Engines/webgpuEngine');
+        const webgpuEngine = new WebGPUEngine(canvas, { antialias: true, adaptToDeviceRatio: true });
+        await webgpuEngine.initAsync();
+        engine = webgpuEngine;
+      } catch (error) {
+        console.warn('WebGPU initialization failed; falling back to WebGL.', error);
+        engine = new Engine(canvas, true, {}, true);
+      }
     } else {
       engine = new Engine(canvas, true, {}, true);
     }

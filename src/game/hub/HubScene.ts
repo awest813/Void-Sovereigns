@@ -6,7 +6,6 @@ import {
   TransformNode,
   PointLight,
   SpotLight,
-  Sound,
   type Mesh,
 } from '@babylonjs/core';
 import { addIndustrialClutter, createIndustrialDetail, createHazardStripe } from '../VisualUtils';
@@ -16,6 +15,7 @@ import { createFlickeringLight } from '../effects/EnvironmentalHazards';
 import { StationNPC } from '../entities/StationNPC';
 import { ASSETS } from '../AssetManifest';
 import { importMeshAsync } from '../BabylonAssetLoader';
+import { createLocalSound } from '../assets/ProceduralAssets';
 
 export interface HubLandmarks {
   missionTerminal: Mesh;
@@ -83,7 +83,7 @@ export async function buildHubScene(scene: Scene): Promise<HubLandmarks> {
   createHazardStripe(scene, new Vector3(0, 3, 5.5), new Vector3(0, 0, 0));  // Entrance to Engineering
 
   // 2. Global Aesthetics (Positional Audio)
-  const engineHum = new Sound('engine_hum', 'https://www.babylonjs-live.com/assets/sounds/fan.wav', scene, null, {
+  const engineHum = createLocalSound('engine_hum', scene, {
     loop: true,
     autoplay: true,
     spatialSound: true,
