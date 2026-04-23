@@ -39,6 +39,10 @@ var _last_impulse_time: float   = -99.0
 var _dodge_window_until: float  = -1.0
 var _step_accumulator: float    = 0.0
 
+# Fall damage tracking
+var _was_on_floor: bool         = true
+var _pre_land_y_velocity: float = 0.0
+
 # Crouch shape tweak
 var _normal_shape_height: float = 2.0
 var _crouch_shape_height: float = 1.2
@@ -116,7 +120,18 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, move_speed)
 		velocity.z = move_toward(velocity.z, 0.0, move_speed)
 
+	# Capture downward speed immediately before collision resolution.
+	# This must be after gravity/jump velocity is applied so the full
+	# impact velocity is measured — capturing earlier would undercount it.
+	_pre_land_y_velocity = velocity.y
+
 	move_and_slide()
+
+	# ── Fall damage ───────────────────────────────────────────────────────────
+	var on_floor_now := is_on_floor()
+	if on_floor_now and not _was_on_floor:
+		_apply_fall_damage()
+	_was_on_floor = on_floor_now
 
 	# Footsteps
 	if is_on_floor() and direction.length_squared() > 0.0:
@@ -262,6 +277,22 @@ func get_forward_ray_origin() -> Vector3:
 
 func get_forward_ray_direction() -> Vector3:
 	return -camera.global_transform.basis.z
+
+## Apply fall damage based on landing speed.
+## A SAFE_FALL_SPEED of 7 m/s lets normal jumps through unharmed (~4.5 m/s).
+## Each m/s beyond the threshold deals 5 HP. "IRON SOLES" perk halves this.
+func _apply_fall_damage() -> void:
+	const SAFE_FALL_SPEED := 7.0     # m/s — below this, no damage
+	const DAMAGE_PER_MS   := 5.0     # HP per m/s over the safe threshold
+	var impact := -_pre_land_y_velocity   # positive value = falling downward
+	if impact <= SAFE_FALL_SPEED:
+		return
+	var damage := (impact - SAFE_FALL_SPEED) * DAMAGE_PER_MS
+	if ProgressionState.has_perk("IRON SOLES"):
+		damage *= 0.5
+	var hs := get_node_or_null("HealthSystem")
+	if hs and hs.has_method("take_damage"):
+		hs.take_damage(damage)
 
 func play_shoot_animation() -> void:
 	if anim_player:
