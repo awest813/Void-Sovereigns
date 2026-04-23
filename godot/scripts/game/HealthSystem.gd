@@ -21,7 +21,10 @@ var _last_damage_time: float = -999.0
 var can_avoid_damage: Callable = Callable()
 
 func _ready() -> void:
-	max_shield = 200.0 if ProgressionState.has_perk("TITAN SHIELDS") else 100.0
+	# Support both the new lowercase perk id (ContentRegistry) and the legacy
+	# uppercase id stored in older saves.
+	var has_titan := ProgressionState.has_perk("titan_shields") or ProgressionState.has_perk("TITAN SHIELDS")
+	max_shield = 200.0 if has_titan else 100.0
 	current_health = max_health
 	current_shield = max_shield
 
@@ -39,6 +42,12 @@ func receive(packet: DamagePacket) -> float:
 	var amount := packet.amount
 	if packet.is_crit:
 		amount *= 1.5
+	# Apply equipped-armor resistances (player-side only; CombatantComponent
+	# handles enemies). LoadoutState.aggregate_resistance returns a multiplier
+	# in [0,1] so we scale raw damage down by owner's gear.
+	var parent := get_parent()
+	if parent and parent.is_in_group("player"):
+		amount *= LoadoutState.aggregate_resistance(int(packet.type))
 	take_damage(amount)
 	return amount
 

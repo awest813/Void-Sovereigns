@@ -26,11 +26,11 @@ var _recoil_offset: Vector3 = Vector3.ZERO
 var _rarity: Rarity = Rarity.COMMON
 var _damage: float = 10.0
 
-var _current_mag: Dictionary = {"pistol": 12, "shotgun": 4, "smg": 30}
-var _max_mag:     Dictionary = {"pistol": 12, "shotgun": 4, "smg": 30}
+var _current_mag: Dictionary = {"pistol": 12, "shotgun": 4, "smg": 30, "rifle": 10}
+var _max_mag:     Dictionary = {"pistol": 12, "shotgun": 4, "smg": 30, "rifle": 10}
 
-const FIRE_RATES: Dictionary = {"pistol": 0.25, "shotgun": 0.70, "smg": 0.10}
-const SPREADS:   Dictionary = {"pistol": 0.01, "shotgun": 0.15, "smg": 0.08}
+const FIRE_RATES: Dictionary = {"pistol": 0.25, "shotgun": 0.70, "smg": 0.10, "rifle": 0.45}
+const SPREADS:   Dictionary = {"pistol": 0.01, "shotgun": 0.15, "smg": 0.08, "rifle": 0.02}
 
 @export var grenade_scene: PackedScene = null
 
@@ -69,7 +69,8 @@ func fire() -> void:
 	if _current_mag.get(_current_weapon, 0) <= 0:
 		reload()
 		return
-	var rate := FIRE_RATES.get(_current_weapon, 0.25)
+	var def := _current_weapon_def()
+	var rate: float = def.fire_rate if def else FIRE_RATES.get(_current_weapon, 0.25)
 	if now - _last_fire_time < rate:
 		return
 	_last_fire_time = now
@@ -79,15 +80,11 @@ func fire() -> void:
 	_recoil_offset = Vector3(0.0, 0.0, -0.15)
 	_shake_camera(_current_weapon == "shotgun")
 
-	# Fire pellets
-	match _current_weapon:
-		"shotgun":
-			for _i in 10:
-				_perform_raycast(SPREADS["shotgun"])
-		"smg":
-			_perform_raycast(SPREADS["smg"])
-		_:
-			_perform_raycast(SPREADS["pistol"])
+	# Fire pellets — prefer definition values over the hard-coded tables.
+	var spread: float = def.recoil if def else SPREADS.get(_current_weapon, 0.01)
+	var pellets: int = def.pellets if def else (10 if _current_weapon == "shotgun" else 1)
+	for _i in pellets:
+		_perform_raycast(spread)
 
 	_create_muzzle_flash()
 	_emit_ammo_changed()
@@ -155,7 +152,9 @@ func _perform_raycast(spread: float) -> void:
 	var result := space.intersect_ray(query)
 	if result.has("collider"):
 		var c = result["collider"]
-		var packet := DamagePacket.make(_damage, DamagePacket.Type.BALLISTIC, _player)
+		var def := _current_weapon_def()
+		var dmg_type := int(def.damage_type) if def else int(DamagePacket.Type.BALLISTIC)
+		var packet := DamagePacket.make(_damage, dmg_type, _player)
 		HitPipeline.resolve(packet, c)
 		if result.has("position"):
 			_spawn_impact_particles(result["position"])
@@ -172,7 +171,31 @@ func _refresh_stats() -> void:
 		Rarity.LEGENDARY: rarity_mod = 2.5
 		Rarity.EPIC:      rarity_mod = 1.8
 		Rarity.RARE:      rarity_mod = 1.2
-	_damage = LoadoutState.weapon_damage * rarity_mod
+
+	# Prefer the typed WeaponDefinition for the currently equipped primary.
+	var def := _current_weapon_def()
+	if def:
+		_damage = def.damage * rarity_mod
+		_max_mag[def.legacy_weapon_type()]     = def.mag_size
+		if not _current_mag.has(def.legacy_weapon_type()):
+			_current_mag[def.legacy_weapon_type()] = def.mag_size
+	else:
+		_damage = LoadoutState.weapon_damage * rarity_mod
+
+## Returns the WeaponDefinition matching _current_weapon, or null when no
+## ContentRegistry entry exists for the equipped primary.
+func _current_weapon_def() -> WeaponDefinition:
+	var cr := get_node_or_null("/root/ContentRegistry")
+	if cr == null:
+		return null
+	# Prefer explicit equipped_primary id; otherwise match by legacy type.
+	var primary: WeaponDefinition = cr.get_weapon(StringName(LoadoutState.equipped_primary))
+	if primary and primary.legacy_weapon_type() == _current_weapon:
+		return primary
+	for w in cr.weapons():
+		if w.legacy_weapon_type() == _current_weapon:
+			return w
+	return null
 
 func _apply_sway_and_recoil(delta: float) -> void:
 	if _weapon_pivot == null:
