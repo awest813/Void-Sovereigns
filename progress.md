@@ -31,7 +31,17 @@ Progress:
   - Added `public/assets/THIRD_PARTY_ASSETS.md` with source/license/import notes.
   - Left broader packs out unless their download/source path was clean and exact-fit.
 - `npm run check`, `npm run build`, and Playwright smoke pass now complete without generated `errors-*.json`.
+- AIDirector implemented (`src/game/missions/AIDirector.ts`):
+  - Spawn budgets by room type + critical-path depth (Objective 1–2, Engine 1, Junction 1–2, Loot/Airlock 50% ambush, Corridor probabilistic patrol).
+  - Bots in rooms at or beyond 60% of max critical-path depth start force-alerted.
+  - Multiple bots in the same room are spread in a ring around the room centre.
+  - SecurityBot spawning removed from MissionZone room loop; AIDirector.spawnEncounters called after all room content is placed.
+- Structural tile variants implemented in MissionZone (`buildRoomStructure`):
+  - Per-room floor slab + ceiling slab (always present).
+  - Wall panels placed at each cardinal side that has no exit, oriented inward via Y-axis rotation.
+  - N/S panels span the X axis; E/W panels span the Z axis — corridors and rooms now read as enclosed spaces with directional openings.
 
 TODO:
-- Next useful polish: add real local sound assets and fill in the missing Quaternius GLB asset packs, then expand `AVAILABLE_ASSET_PATHS` in `BabylonAssetLoader`.
-- Next procedural pass: resolve visual corridor tile variants from `room.shape`/`room.exits`, then add AI Director spawn rules using critical path depth and line-of-sight checks.
+- Next useful polish: add real local sound assets and fill in the missing Quaternius GLB asset packs, then expand `AVAILABLE_ASSET_PATHS` in `GameAssetManager`.
+- Next procedural pass: resolve visual corridor tile variants from `room.shape` (narrower wall panels for straight corridors vs. wide room panels), then refine AI Director with LOS-aware spawn-point selection.
+- Possible next gameplay beat: add a simple reinforcement wave triggered when the objective is completed (pull from SecurityBot.forceAlert on off-screen rooms past the objective on the critical path).
