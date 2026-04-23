@@ -1,5 +1,7 @@
 extends CharacterBody3D
 ## SecurityBot — 8-state FSM AI with NavigationAgent3D. Ports SecurityBot.ts.
+## Uses CombatantComponent for damage intake, PerceptionEyes for detection,
+## SKBlackboard for cross-bot state sharing, and SKLootTable for drops.
 
 signal bot_killed()
 signal bot_alerted()
@@ -26,14 +28,22 @@ enum AIState { PATROL, INVESTIGATE, PEEK, ALERT, ATTACK, RETREAT, STAGGERED, DEA
 ## Optional waypoint list for patrol routes.
 @export var waypoints: Array[NodePath] = []
 
+## Optional loot table. Falls back to LootData.TABLE_COMMON when null.
+@export var loot_table: SKLootTable = null
+
+# ── Perception / Blackboard components (created in _ready) ────────────────────
+var _eyes: PerceptionEyes = null
+var _ears: PerceptionEars = null
+var _blackboard: SKBlackboard = null
+
+# ── CombatantComponent (created in _ready) ────────────────────────────────────
+var _combatant: CombatantComponent = null
+
 # ── State ─────────────────────────────────────────────────────────────────────
 var _state: AIState = AIState.PATROL
-var _health: float
-var _suspicion: float = 0.0
 var _last_fire_time: float = 0.0
 var _state_entered_at: float = 0.0
 var _has_announced_alert: bool = false
-var _last_known_player_pos: Vector3 = Vector3.ZERO
 var _peek_position: Vector3 = Vector3.ZERO
 var _has_peek_pos: bool = false
 var _waypoint_index: int = 0
@@ -46,7 +56,6 @@ var _player_health: Node = null  # HealthSystem
 var _waypoint_positions: Array[Vector3] = []
 
 func _ready() -> void:
-	_health         = max_health
 	_start_position = global_position
 	add_to_group("security_bots")
 
@@ -56,12 +65,45 @@ func _ready() -> void:
 		if n:
 			_waypoint_positions.append(n.global_position)
 
+	# ── CombatantComponent ────────────────────────────────────────────────────
+	_combatant = CombatantComponent.new()
+	_combatant.name        = "CombatantComponent"
+	_combatant.max_health  = max_health
+	_combatant.poise_threshold = max_health * 0.25   # stagger at 25% of max-hp hit
+	add_child(_combatant)
+	_combatant.died.connect(_die)
+	_combatant.poise_broken.connect(func(): _transition_to(AIState.STAGGERED))
+
+	# ── PerceptionEyes ────────────────────────────────────────────────────────
+	_eyes = PerceptionEyes.new()
+	_eyes.name             = "PerceptionEyes"
+	_eyes.detection_range  = detection_range
+	_eyes.fov_degrees      = 90.0
+	_eyes.peripheral_fov_degrees = 150.0
+	add_child(_eyes)
+
+	# ── PerceptionEars ────────────────────────────────────────────────────────
+	_ears = PerceptionEars.new()
+	_ears.name          = "PerceptionEars"
+	_ears.hearing_range = detection_range * 1.5
+	add_child(_ears)
+	_ears.add_to_group("perception_ears")
+	_ears.sound_detected.connect(_on_sound_detected)
+
+	# Default per-bot blackboard (replaced when encounter provides a shared one)
+	_blackboard = SKBlackboard.new()
+
 	_transition_to(AIState.PATROL)
 
 func setup(player: Node3D, player_health: Node, hud: Node) -> void:
 	_player        = player
 	_player_health = player_health
 	_hud           = hud
+	_eyes.target   = player
+
+## Assign a shared blackboard (called by mission.gd for cross-bot coordination).
+func set_blackboard(bb: SKBlackboard) -> void:
+	_blackboard = bb
 
 # ── Physics Process ───────────────────────────────────────────────────────────
 
@@ -69,46 +111,46 @@ func _physics_process(delta: float) -> void:
 	if _player == null or _state == AIState.DEAD:
 		return
 
+	# PerceptionEyes returns: 0 = undetected, 1 = noticed, 2 = alerted
+	var perception    := _eyes.update(delta, _player, self)
+	var can_see_player := perception > 0
 	var dist_to_player := global_position.distance_to(_player.global_position)
-	var has_sight      := dist_to_player < detection_range and _has_line_of_sight()
-	var can_see_player := _update_suspicion(delta, dist_to_player, has_sight)
+
+	if can_see_player:
+		_blackboard.set_vec3("last_known_player_pos", _player.global_position)
+
+	var last_known := _blackboard.get_vec3("last_known_player_pos")
 
 	match _state:
 		AIState.PATROL:
 			_patrol()
 			_play_anim("Walk")
 			if can_see_player:
-				_last_known_player_pos = _player.global_position
-				_transition_to(AIState.ALERT if _suspicion >= 1.0 else AIState.PEEK)
+				_transition_to(AIState.ALERT if perception >= 2 else AIState.PEEK)
 
 		AIState.INVESTIGATE:
 			_play_anim("Walk")
-			nav_agent.target_position = _last_known_player_pos
-			if global_position.distance_to(_last_known_player_pos) < 1.5:
+			nav_agent.target_position = last_known
+			if global_position.distance_to(last_known) < 1.5:
 				_transition_to(AIState.PATROL)
 			if can_see_player:
-				_last_known_player_pos = _player.global_position
-				_transition_to(AIState.ALERT if _suspicion >= 1.0 else AIState.PEEK)
+				_transition_to(AIState.ALERT if perception >= 2 else AIState.PEEK)
 
 		AIState.PEEK:
 			_play_anim("Idle")
-			if has_sight:
-				_last_known_player_pos = _player.global_position
 			if not _has_peek_pos:
 				_peek_position = _find_peek_position()
 				_has_peek_pos = true
 			nav_agent.target_position = _peek_position
 			look_at(_player.global_position, Vector3.UP)
-			if _suspicion >= 1.0:
+			if perception >= 2:
 				_transition_to(AIState.ALERT)
-			elif not has_sight and Time.get_ticks_msec() / 1000.0 - _state_entered_at > 1.8:
+			elif not can_see_player and Time.get_ticks_msec() / 1000.0 - _state_entered_at > 1.8:
 				_transition_to(AIState.INVESTIGATE)
 
 		AIState.ALERT:
 			_play_anim("Idle")
 			look_at(_player.global_position, Vector3.UP)
-			if can_see_player:
-				_last_known_player_pos = _player.global_position
 			nav_agent.target_position = _player.global_position
 			if dist_to_player < attack_range and can_see_player:
 				_transition_to(AIState.ATTACK)
@@ -118,9 +160,8 @@ func _physics_process(delta: float) -> void:
 		AIState.ATTACK:
 			_play_anim("Shoot")
 			look_at(_player.global_position, Vector3.UP)
-			if can_see_player:
-				_last_known_player_pos = _player.global_position
-			if _health / max_health < 0.35 and dist_to_player < 5.0:
+			var hp_pct: float = _combatant.get_health_percent()
+			if hp_pct < 0.35 and dist_to_player < 5.0:
 				_transition_to(AIState.RETREAT)
 			else:
 				nav_agent.target_position = _player.global_position
@@ -143,16 +184,17 @@ func _physics_process(delta: float) -> void:
 			if Time.get_ticks_msec() / 1000.0 - _state_entered_at > stagger_duration:
 				_transition_to(AIState.ATTACK if can_see_player else AIState.INVESTIGATE)
 
-	# Navigation movement
+	# Navigation movement — also apply slow factor from status effects
 	if _state not in [AIState.DEAD, AIState.STAGGERED]:
 		_apply_nav_velocity(delta)
 
 func _apply_nav_velocity(delta: float) -> void:
 	if nav_agent.is_navigation_finished():
 		return
+	var slow := _combatant.get_slow_factor() if _combatant else 1.0
 	var dir := (nav_agent.get_next_path_position() - global_position).normalized()
 	dir.y = 0.0
-	velocity = dir * max_speed * _extraction_pressure_mult()
+	velocity = dir * max_speed * _extraction_pressure_mult() * slow
 	velocity += get_gravity() * delta
 	move_and_slide()
 
@@ -175,31 +217,6 @@ func _get_random_patrol_point() -> Vector3:
 		randf_range(-patrol_radius, patrol_radius)
 	)
 
-func _has_line_of_sight() -> bool:
-	if _player == null:
-		return false
-	var space  := get_world_3d().direct_space_state
-	var origin := global_position + Vector3(0.0, 0.8, 0.0)
-	var target := _player.global_position
-	var query  := PhysicsRayQueryParameters3D.create(origin, target)
-	query.exclude = [self]
-	var result := space.intersect_ray(query)
-	if result.has("collider"):
-		return (result["collider"] as Node).is_in_group("player")
-	return false
-
-func _update_suspicion(delta: float, dist: float, has_sight: bool) -> bool:
-	var exposure := 1.0
-	if _player and _player.has_method("get_exposure_score"):
-		exposure = _player.get_exposure_score()
-	var range_factor := maxf(0.15, 1.0 - dist / detection_range)
-	if has_sight:
-		_suspicion += delta * exposure * (0.55 + range_factor) * _extraction_pressure_mult()
-	elif _state != AIState.INVESTIGATE:
-		_suspicion -= delta * 0.28
-	_suspicion = clampf(_suspicion, 0.0, 1.35)
-	return _suspicion > 0.28
-
 func _extraction_pressure_mult() -> float:
 	var s := MissionState.mission_status
 	return 1.35 if s == "objectiveComplete" or s == "extractionAvailable" else 1.0
@@ -220,9 +237,12 @@ func _attack() -> void:
 	var result := space.intersect_ray(query)
 	if result.has("collider"):
 		var c = result["collider"]
-		if c.is_in_group("player") and _player_health and _player_health.has_method("take_damage"):
-			_player_health.take_damage(damage * _extraction_pressure_mult())
+		if c.is_in_group("player") and _player_health:
+			var packet := DamagePacket.make(damage * _extraction_pressure_mult(), DamagePacket.Type.BALLISTIC, self)
+			HitPipeline.resolve(packet, _player_health)
 			_trigger_muzzle_flash()
+			# Alert hearing-range bots via PerceptionEars
+			PerceptionEars.emit_sound_at(global_position, 1.0, get_tree())
 
 func _trigger_muzzle_flash() -> void:
 	if muzzle_light:
@@ -288,24 +308,26 @@ func _show_message(msg: String, duration: float) -> void:
 	if _hud and _hud.has_method("show_message"):
 		_hud.show_message(msg, duration)
 
+func _on_sound_detected(pos: Vector3, _volume: float) -> void:
+	if _state == AIState.PATROL or _state == AIState.INVESTIGATE:
+		_blackboard.set_vec3("last_known_player_pos", pos)
+		_transition_to(AIState.INVESTIGATE)
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 func take_damage(amount: float) -> void:
 	if _state == AIState.DEAD:
 		return
-	_health -= amount
-	if _last_known_player_pos == Vector3.ZERO and _player:
-		_last_known_player_pos = _player.global_position
-	if _health <= 0.0:
-		_die()
-	else:
-		_transition_to(AIState.STAGGERED)
+	_combatant.take_damage(amount)
+
+## DamagePacket-aware entry for HitPipeline (found on CombatantComponent child).
 
 func force_alert(pos: Vector3 = Vector3.ZERO) -> void:
 	if _state == AIState.DEAD:
 		return
-	_last_known_player_pos = pos if pos != Vector3.ZERO else (_player.global_position if _player else global_position)
-	_suspicion = 1.1
+	var alert_pos := pos if pos != Vector3.ZERO else (_player.global_position if _player else global_position)
+	_blackboard.set_vec3("last_known_player_pos", alert_pos)
+	_eyes.force_alert()
 	_transition_to(AIState.ALERT)
 
 func _die() -> void:
@@ -316,5 +338,16 @@ func _die() -> void:
 	bot_killed.emit()
 	if hum_audio:
 		hum_audio.stop()
+
+	# Drop loot — prefer exported SKLootTable, fall back to LootData.TABLE_COMMON
+	var ctx := {"level": ProgressionState.level}
+	var drops: Array = []
+	if loot_table != null:
+		drops = loot_table.roll(ctx)
+	else:
+		drops = SKLootTable.from_array(LootData.TABLE_COMMON).roll(ctx)
+	for item in drops:
+		EconomyState.add_loot(item)
+
 	await get_tree().create_timer(0.5).timeout
 	queue_free()

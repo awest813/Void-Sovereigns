@@ -14,6 +14,7 @@ const _CFG_SECTION := "economy"
 
 func _ready() -> void:
 	load_state()
+	SaveSystem.load_completed.connect(func(_s): load_state())
 
 # ── Market ────────────────────────────────────────────────────────────────────
 
@@ -51,17 +52,12 @@ func decay_saturations() -> void:
 # ── Persistence ───────────────────────────────────────────────────────────────
 
 func save_state() -> void:
-	var cfg := ConfigFile.new()
-	cfg.load("user://save.cfg")
-	cfg.set_value(_CFG_SECTION, "credits",            credits)
-	cfg.set_value(_CFG_SECTION, "inventory",          inventory)
-	cfg.set_value(_CFG_SECTION, "market_saturation",  market_saturation)
-	cfg.save("user://save.cfg")
+	SaveSystem.set_value(_CFG_SECTION, "credits",           credits)
+	SaveSystem.set_value(_CFG_SECTION, "inventory",         inventory)
+	SaveSystem.set_value(_CFG_SECTION, "market_saturation", market_saturation)
+	SaveSystem.flush()
 
 func load_state() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://save.cfg") != OK:
-		return
-	credits           = cfg.get_value(_CFG_SECTION, "credits",           0)
-	inventory         = cfg.get_value(_CFG_SECTION, "inventory",         [])
-	market_saturation = cfg.get_value(_CFG_SECTION, "market_saturation", {})
+	credits           = SaveSystem.get_value(_CFG_SECTION, "credits",           0)
+	inventory         = SaveSystem.get_value(_CFG_SECTION, "inventory",         [])
+	market_saturation = SaveSystem.get_value(_CFG_SECTION, "market_saturation", {})

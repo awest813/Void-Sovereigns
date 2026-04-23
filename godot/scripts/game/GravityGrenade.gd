@@ -27,6 +27,7 @@ func _detonate() -> void:
 	params.collision_mask = 0xFFFFFFFF
 
 	var hits := space.intersect_shape(params)
+	var packet := DamagePacket.make(damage, DamagePacket.Type.EXPLOSIVE)
 	for hit in hits:
 		var body = hit.get("collider")
 		if body == null or body == self:
@@ -34,7 +35,6 @@ func _detonate() -> void:
 		var to_centre := global_position - body.global_position
 		if body is RigidBody3D:
 			body.apply_central_impulse(to_centre.normalized() * pull_force)
-		if body.has_method("take_damage"):
-			body.take_damage(damage)
+		HitPipeline.resolve(packet, body)
 
 	queue_free()
