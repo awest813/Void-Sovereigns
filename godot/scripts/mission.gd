@@ -33,7 +33,7 @@ func _ready() -> void:
 	# Wire systems
 	_health_system = _player.get_node("HealthSystem")
 	_weapon_system = _player.get_node("WeaponSystem")
-	var hud_node   = _player.get_node("HUD")
+	var hud_node   := hud  # use the mission scene's own HUD (UI/HUD with HUD.gd)
 
 	_health_system.damaged.connect(func(cur, mx): hud_node.update_health(cur, mx))
 	_health_system.shield_changed.connect(func(pct): hud_node.update_shield(pct))

@@ -57,7 +57,7 @@ func _open_perks() -> void:
 func _open_decryption() -> void:
 	_close_all_uis()
 	if decryption_ui:
-		decryption_ui.show()
+		decryption_ui.call("start_decryption")
 
 func _prompt_deploy() -> void:
 	var mission := MissionState.active_mission_id
@@ -74,3 +74,14 @@ func _close_all_uis() -> void:
 	for ui in [mission_board_ui, shop_ui, perk_menu_ui, decryption_ui, inventory_ui]:
 		if ui:
 			ui.hide()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory"):
+		if inventory_ui and inventory_ui.visible:
+			inventory_ui.hide()
+			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+		elif inventory_ui:
+			_close_all_uis()
+			inventory_ui.show()
+			inventory_ui.call("refresh")
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

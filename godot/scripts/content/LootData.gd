@@ -1,4 +1,5 @@
 extends Node
+class_name LootData
 ## LootData — ports LootTable.ts tables into GDScript.
 ## Each entry: {id, name, base_value, weight, category}
 

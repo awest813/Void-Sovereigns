@@ -34,7 +34,7 @@ script = ExtResource("4_oxy")
 [node name="ExtractionSystem" type="Area3D" parent="Systems"]
 script = ExtResource("5_extract")
 collision_layer = 0
-collision_mask = 2
+collision_mask = 1
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Systems/ExtractionSystem"]
 shape = SubResource("SphereShape3D_extract")
 
@@ -50,6 +50,110 @@ bus = &"SFX"
 [node name="HUD" type="CanvasLayer" parent="UI"]
 script = ExtResource("7_hud")
 
+[node name="Bars" type="HBoxContainer" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 520.0
+offset_bottom = 32.0
+
+[node name="HealthBar" type="ProgressBar" parent="UI/HUD/Bars"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+
+[node name="ShieldBar" type="ProgressBar" parent="UI/HUD/Bars"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+
+[node name="OxygenBar" type="ProgressBar" parent="UI/HUD/Bars"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+
+[node name="ImpulseBar" type="ProgressBar" parent="UI/HUD/Bars"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+
+[node name="Ammo" type="HBoxContainer" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 38.0
+offset_right = 200.0
+offset_bottom = 58.0
+
+[node name="AmmoLabel" type="Label" parent="UI/HUD/Ammo"]
+layout_mode = 2
+text = "-- / --"
+
+[node name="XP" type="HBoxContainer" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 62.0
+offset_right = 320.0
+offset_bottom = 82.0
+
+[node name="XPBar" type="ProgressBar" parent="UI/HUD/XP"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 18)
+min_value = 0.0
+max_value = 100.0
+value = 0.0
+
+[node name="LevelLabel" type="Label" parent="UI/HUD/XP"]
+layout_mode = 2
+text = "LV 1"
+
+[node name="StatusLabel" type="Label" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 88.0
+offset_right = 400.0
+offset_bottom = 108.0
+
+[node name="MessageLabel" type="Label" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 112.0
+offset_right = 700.0
+offset_bottom = 136.0
+visible = false
+
+[node name="DamageFlash" type="ColorRect" parent="UI/HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(1, 0, 0, 0)
+mouse_filter = 2
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="UI/HUD/DamageFlash"]
+
+[node name="InteractPrompt" type="Label" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 140.0
+offset_right = 400.0
+offset_bottom = 162.0
+visible = false
+
+[node name="Crosshair" type="Control" parent="UI/HUD"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+
+[node name="WeaponLabel" type="Label" parent="UI/HUD"]
+offset_left = 10.0
+offset_top = 166.0
+offset_right = 300.0
+offset_bottom = 186.0
+text = "PISTOL"
+
 [node name="DebriefUI" type="Control" parent="UI"]
 anchors_preset = 15
 anchor_right = 1.0
@@ -57,7 +161,66 @@ anchor_bottom = 1.0
 script = ExtResource("8_debrief")
 visible = false
 
+[node name="Panel" type="Control" parent="UI/DebriefUI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -230.0
+offset_right = 280.0
+offset_bottom = 230.0
+
+[node name="TitleLabel" type="Label" parent="UI/DebriefUI/Panel"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 560.0
+offset_bottom = 40.0
+horizontal_alignment = 1
+
+[node name="StatsLabel" type="Label" parent="UI/DebriefUI/Panel"]
+offset_left = 0.0
+offset_top = 46.0
+offset_right = 560.0
+offset_bottom = 110.0
+
+[node name="LootList" type="VBoxContainer" parent="UI/DebriefUI/Panel"]
+offset_left = 0.0
+offset_top = 116.0
+offset_right = 560.0
+offset_bottom = 380.0
+
+[node name="ContinueButton" type="Button" parent="UI/DebriefUI/Panel"]
+offset_left = 0.0
+offset_top = 388.0
+offset_right = 200.0
+offset_bottom = 420.0
+text = "Return to Hub"
+
 [node name="LoadingUI" type="CanvasLayer" parent="UI"]
 layer = 128
 script = ExtResource("9_loading")
 visible = false
+
+[node name="VBox" type="VBoxContainer" parent="UI/LoadingUI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -40.0
+offset_right = 200.0
+offset_bottom = 40.0
+
+[node name="StatusLabel" type="Label" parent="UI/LoadingUI/VBox"]
+layout_mode = 2
+text = "LOADING..."
+horizontal_alignment = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="UI/LoadingUI/VBox"]
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+value = 0.0
