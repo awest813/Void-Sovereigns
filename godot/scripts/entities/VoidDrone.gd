@@ -9,6 +9,9 @@ signal drone_killed()
 
 enum AIState { PATROL, CHASE, ATTACK, DEAD }
 
+## Preloaded once at class level to avoid repeated disk I/O when enemies die.
+const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
+
 # ── Exported Tunables ─────────────────────────────────────────────────────────
 @export var detection_range: float  = 12.0
 @export var attack_range: float     = 1.8    ## Contact attack distance (metres)
@@ -160,6 +163,8 @@ func _try_attack() -> void:
 		return
 	_last_attack_time = now
 	if _player_health:
+		# HitPipeline.resolve() handles the method-dispatch lookup internally
+		# (CombatantComponent, HealthSystem, or legacy take_damage fallback).
 		var packet := DamagePacket.make(contact_damage, DamagePacket.Type.MELEE, self)
 		HitPipeline.resolve(packet, _player_health)
 
@@ -211,12 +216,12 @@ func _on_died() -> void:
 	else:
 		drops = SKLootTable.from_array(LootData.TABLE_COMMON).roll(ctx)
 
-	var item_scene := load("res://scenes/entities/dropped_item.tscn") as PackedScene
-	var parent     := get_parent()
+	# DROPPED_ITEM_SCENE is preloaded at class level to avoid per-death disk I/O.
+	var parent := get_parent()
 
 	for drop_item in drops:
-		if item_scene and parent:
-			var pickup := item_scene.instantiate()
+		if parent:
+			var pickup := DROPPED_ITEM_SCENE.instantiate()
 			parent.add_child(pickup)
 			(pickup as DroppedItem).set_item(drop_item)
 			pickup.global_position = global_position + Vector3(

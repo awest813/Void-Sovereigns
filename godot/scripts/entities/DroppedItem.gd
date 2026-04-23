@@ -62,7 +62,9 @@ func _collect() -> void:
 	var category: String = item_data.get("category", "misc")
 
 	if category == "ammo":
-		# Distribute a fixed ammo bonus across all weapon types.
+		# LootData ammo entries (e.g. "ammo_pack") carry no per-weapon-type
+		# metadata, so we distribute a fixed bonus across all weapon types.
+		# If future loot entries gain a "weapon" field, route them here instead.
 		LoadoutState.add_ammo("pistol",  10)
 		LoadoutState.add_ammo("shotgun",  2)
 		LoadoutState.add_ammo("smg",     20)

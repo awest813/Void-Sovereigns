@@ -120,7 +120,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, move_speed)
 		velocity.z = move_toward(velocity.z, 0.0, move_speed)
 
-	# Capture downward speed before collision resolution (used for fall damage).
+	# Capture downward speed immediately before collision resolution.
+	# This must be after gravity/jump velocity is applied so the full
+	# impact velocity is measured — capturing earlier would undercount it.
 	_pre_land_y_velocity = velocity.y
 
 	move_and_slide()
