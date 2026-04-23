@@ -1,0 +1,10 @@
+# Godot editor-generated files
+.godot/
+*.translation
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Export templates (large, not needed in repo)
+export_presets.cfg

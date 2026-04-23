@@ -1,0 +1,63 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/mission.gd" id="1_mission"]
+[ext_resource type="Script" path="res://scripts/missions/MissionZone.gd" id="2_zone"]
+[ext_resource type="Script" path="res://scripts/missions/RoomActivitySystem.gd" id="3_room"]
+[ext_resource type="Script" path="res://scripts/game/OxygenSystem.gd" id="4_oxy"]
+[ext_resource type="Script" path="res://scripts/game/ExtractionSystem.gd" id="5_extract"]
+[ext_resource type="Script" path="res://scripts/effects/RadioChatter.gd" id="6_radio"]
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="7_hud"]
+[ext_resource type="Script" path="res://scripts/ui/DebriefUI.gd" id="8_debrief"]
+[ext_resource type="Script" path="res://scripts/ui/LoadingUI.gd" id="9_loading"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_extract"]
+radius = 3.0
+
+[node name="Mission" type="Node3D"]
+script = ExtResource("1_mission")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 8, 0)
+light_energy = 0.3
+shadow_enabled = true
+
+[node name="MissionZone" type="Node3D" parent="."]
+script = ExtResource("2_zone")
+
+[node name="Systems" type="Node" parent="."]
+
+[node name="OxygenSystem" type="Node" parent="Systems"]
+script = ExtResource("4_oxy")
+
+[node name="ExtractionSystem" type="Area3D" parent="Systems"]
+script = ExtResource("5_extract")
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Systems/ExtractionSystem"]
+shape = SubResource("SphereShape3D_extract")
+
+[node name="RoomActivitySystem" type="Node" parent="Systems"]
+script = ExtResource("3_room")
+
+[node name="RadioChatter" type="AudioStreamPlayer" parent="Systems"]
+script = ExtResource("6_radio")
+bus = &"SFX"
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="UI"]
+script = ExtResource("7_hud")
+
+[node name="DebriefUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("8_debrief")
+visible = false
+
+[node name="LoadingUI" type="CanvasLayer" parent="UI"]
+layer = 128
+script = ExtResource("9_loading")
+visible = false
