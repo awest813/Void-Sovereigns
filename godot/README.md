@@ -1,11 +1,11 @@
 # Void Sovereigns — Godot 4 Project
 
-This directory contains the **Godot 4 (Forward+)** migration of Void Sovereigns,
+This directory contains the **Godot 4.4+ (Forward+)** migration of Void Sovereigns,
 built on top of [`awest813/Void-Sovereigns-FPS`](https://github.com/awest813/Void-Sovereigns-FPS).
 
 ## Opening in Godot
 
-1. Download [Godot 4.3](https://godotengine.org/download) (stable)
+1. Download [Godot 4.4](https://godotengine.org/download) (stable)
 2. Open **Project Manager** → **Import** → navigate to `godot/` → select `project.godot`
 3. Click **Import & Edit**
 
