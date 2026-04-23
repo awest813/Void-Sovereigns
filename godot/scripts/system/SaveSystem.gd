@@ -25,7 +25,7 @@ const MIGRATIONS: Dictionary = {
 func _ready() -> void:
 	var err := DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 	if err != OK and err != ERR_ALREADY_EXISTS:
-		push_error("SaveSystem: cannot create save dir (err %d)" % err)
+		push_error("SaveSystem: failed to create save dir '%s' (err %d)" % [SAVE_DIR, err])
 	load_slot(0)   # Auto-load slot 0; other autoloads read from this in their _ready()
 
 # ── Public API ─────────────────────────────────────────────────────────────────

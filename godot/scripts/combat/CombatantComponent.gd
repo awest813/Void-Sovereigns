@@ -97,7 +97,7 @@ func is_dead() -> bool:
 func apply_status(effect: StatusEffect) -> void:
 	for existing in _status_effects:
 		if existing.id == effect.id:
-			existing._elapsed = 0.0   # Refresh duration
+			existing.refresh()   # Use public API
 			return
 	_status_effects.append(effect)
 	status_applied.emit(effect)

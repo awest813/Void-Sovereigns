@@ -92,6 +92,9 @@ func fire() -> void:
 	_create_muzzle_flash()
 	_emit_ammo_changed()
 
+	# Broadcast gunshot to nearby PerceptionEars AI nodes
+	PerceptionEars.emit_sound_at(_camera.global_position, 1.0, get_tree())
+
 	if _anim_player and _anim_player.has_animation("shoot"):
 		_anim_player.stop()
 		_anim_player.play("shoot")

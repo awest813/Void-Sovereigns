@@ -55,6 +55,8 @@ var _player_health: Node = null  # HealthSystem
 # Resolved waypoint positions
 var _waypoint_positions: Array[Vector3] = []
 
+var _health_percent: float = 1.0   # Cached, updated via damaged signal
+
 func _ready() -> void:
 	_start_position = global_position
 	add_to_group("security_bots")
@@ -73,6 +75,7 @@ func _ready() -> void:
 	add_child(_combatant)
 	_combatant.died.connect(_die)
 	_combatant.poise_broken.connect(func(): _transition_to(AIState.STAGGERED))
+	_combatant.damaged.connect(func(_pkt, _amt): _health_percent = _combatant.get_health_percent())
 
 	# ── PerceptionEyes ────────────────────────────────────────────────────────
 	_eyes = PerceptionEyes.new()
@@ -160,7 +163,7 @@ func _physics_process(delta: float) -> void:
 		AIState.ATTACK:
 			_play_anim("Shoot")
 			look_at(_player.global_position, Vector3.UP)
-			var hp_pct: float = _combatant.get_health_percent()
+			var hp_pct: float = _health_percent
 			if hp_pct < 0.35 and dist_to_player < 5.0:
 				_transition_to(AIState.RETREAT)
 			else:
@@ -319,8 +322,6 @@ func take_damage(amount: float) -> void:
 	if _state == AIState.DEAD:
 		return
 	_combatant.take_damage(amount)
-
-## DamagePacket-aware entry for HitPipeline (found on CombatantComponent child).
 
 func force_alert(pos: Vector3 = Vector3.ZERO) -> void:
 	if _state == AIState.DEAD:

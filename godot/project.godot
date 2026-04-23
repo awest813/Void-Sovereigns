@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+SaveSystem="*res://scripts/system/SaveSystem.gd"
 Global="*res://scripts/Global.gd"
 MissionState="*res://scripts/autoloads/MissionState.gd"
 EconomyState="*res://scripts/autoloads/EconomyState.gd"
@@ -27,6 +28,9 @@ ProgressionState="*res://scripts/autoloads/ProgressionState.gd"
 SceneManager="*res://scripts/autoloads/SceneManager.gd"
 GameAssetManager="*res://scripts/autoloads/GameAssetManager.gd"
 DataManager="*res://scripts/content/DataManager.gd"
+HitPipeline="*res://scripts/combat/HitPipeline.gd"
+QuestGraphEngine="*res://scripts/quests/QuestGraphEngine.gd"
+SpawnTrackerManager="*res://scripts/system/SpawnTrackerManager.gd"
 
 [debug]
 

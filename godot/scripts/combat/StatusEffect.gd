@@ -86,3 +86,8 @@ func update(delta: float) -> DamagePacket:
 
 func remaining() -> float:
 	return maxf(0.0, duration - _elapsed)
+
+## Reset elapsed time to zero (refreshes the effect without re-applying).
+func refresh() -> void:
+	_elapsed      = 0.0
+	_tick_elapsed = 0.0
