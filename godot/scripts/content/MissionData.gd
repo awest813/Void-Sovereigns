@@ -1,4 +1,5 @@
 extends Node
+class_name MissionData
 ## MissionData — ports missionData.ts content into GDScript dictionaries.
 
 const MISSIONS: Array = [

@@ -50,6 +50,8 @@ script = ExtResource("3_health")
 [node name="InteractionSystem" type="Node" parent="."]
 script = ExtResource("4_interact")
 
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
 [node name="Crosshair" type="TextureRect" parent="HUD"]
