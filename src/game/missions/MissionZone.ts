@@ -11,12 +11,12 @@ import {
   Color4
 } from '@babylonjs/core';
 import { ASSETS } from '../AssetManifest';
-import { DungeonGenerator, type RoomNode } from './DungeonGenerator';
+import { DungeonGenerator, type RoomNode, type Direction } from './DungeonGenerator';
 import { RoomActivitySystem } from './RoomActivitySystem';
+import { AIDirector } from './AIDirector';
 import { InteractionSystem } from '../InteractionSystem';
 import { HUD } from '../../ui/hud/HUD';
 import { HealthSystem } from '../state/HealthSystem';
-import { SecurityBot } from '../entities/SecurityBot';
 import { BossCenturion } from '../entities/BossCenturion';
 import type { Interactable } from '../interactions/Interactable';
 import { setupIndustrialPalette } from '../MaterialManager';
@@ -81,17 +81,8 @@ export async function buildMissionZone(
   ]);
 
   for (const room of rooms) {
-    // 1. Structural Mesh
-    const wall = await getModel(scene, ASSETS.ENVIRONMENT.WALL);
-    wall.position = room.position;
-    wall.scaling = new Vector3(room.size.x/2.5, room.size.y/2.5, room.size.z/2.5);
-    wall.checkCollisions = true;
-    markRoomOccupant(wall, room);
-
-    const floor = await getModel(scene, ASSETS.ENVIRONMENT.FLOOR);
-    floor.position = room.position.subtract(new Vector3(0, 1.5, 0));
-    floor.scaling = new Vector3(room.size.x/2.5, 1, room.size.z/2.5);
-    markRoomOccupant(floor, room);
+    // 1. Structural: floor slab + ceiling + oriented wall panels
+    await buildRoomStructure(scene, room);
 
     // 2. Room Content
     if (room.type === 'Objective') {
@@ -118,9 +109,8 @@ export async function buildMissionZone(
        markRoomOccupant(extractionPoint, room);
     }
 
-    if (room.type === 'Engine' || room.type === 'Junction') {
-       createSteamLeak(scene, room.position.add(new Vector3(0, 0, 0)));
-       new SecurityBot(scene, room.position.add(new Vector3(0, 1.5, 0)), player, health, hud, waypoints);
+    if (room.type === 'Engine') {
+       createSteamLeak(scene, room.position);
     }
 
     // 3. Loot
@@ -139,6 +129,10 @@ export async function buildMissionZone(
     createDustParticles(scene, room.position, room.size, biome);
   }
 
+  // 4. AI Director — spawn encounters after all room content is placed
+  const director = new AIDirector(rooms);
+  director.spawnEncounters(scene, player, health, hud, waypoints);
+
   if (!objectiveItemOrNode) {
     const fallbackRoom = rooms.find((room) => room.criticalPath && room.type !== 'Spawn') ?? rooms[rooms.length - 1];
     objectiveItemOrNode = await getModel(scene, ASSETS.ENVIRONMENT.CONSOLE);
@@ -154,6 +148,68 @@ export async function buildMissionZone(
   }
 
   return { objectiveItemOrNode, extractionPoint, lootInteractables };
+}
+
+// ---------------------------------------------------------------------------
+// Room structure helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Directional transform data for placing a wall panel at each of the four
+ * cardinal sides of a room.  The panel faces inward (toward room centre).
+ *
+ * For N/S panels the span runs along X; for E/W the span runs along Z.
+ * The facing direction is stored as a Y-axis rotation in radians.
+ */
+const SIDE_CONFIGS: Record<
+  Direction,
+  { offsetFn: (s: Vector3) => Vector3; rotY: number; spanAxis: 'x' | 'z' }
+> = {
+  N: { offsetFn: (s) => new Vector3(0, 0, -s.z / 2), rotY: 0,            spanAxis: 'x' },
+  S: { offsetFn: (s) => new Vector3(0, 0,  s.z / 2), rotY: Math.PI,      spanAxis: 'x' },
+  E: { offsetFn: (s) => new Vector3( s.x / 2, 0, 0), rotY: Math.PI / 2,  spanAxis: 'z' },
+  W: { offsetFn: (s) => new Vector3(-s.x / 2, 0, 0), rotY: -Math.PI / 2, spanAxis: 'z' },
+};
+
+const ALL_DIRS: Direction[] = ['N', 'E', 'S', 'W'];
+
+/**
+ * Place structural geometry for one room:
+ *   • Floor slab                     (always)
+ *   • Ceiling slab                   (always)
+ *   • Wall panel per closed side     (skipped where an exit exists)
+ */
+async function buildRoomStructure(scene: Scene, room: RoomNode): Promise<void> {
+  const halfHeight = room.size.y / 2;
+
+  // Floor slab
+  const floor = await getModel(scene, ASSETS.ENVIRONMENT.FLOOR);
+  floor.position = room.position.subtract(new Vector3(0, halfHeight, 0));
+  floor.scaling = new Vector3(room.size.x / 2.5, 1, room.size.z / 2.5);
+  markRoomOccupant(floor, room);
+
+  // Ceiling slab (same footprint, flipped up)
+  const ceiling = await getModel(scene, ASSETS.ENVIRONMENT.FLOOR);
+  ceiling.position = room.position.add(new Vector3(0, halfHeight, 0));
+  ceiling.scaling = new Vector3(room.size.x / 2.5, 1, room.size.z / 2.5);
+  markRoomOccupant(ceiling, room);
+
+  // Wall panels — one per side that has no exit
+  const exitSet = new Set(room.exits);
+  for (const dir of ALL_DIRS) {
+    if (exitSet.has(dir)) continue; // doorway — leave open
+
+    const { offsetFn, rotY, spanAxis } = SIDE_CONFIGS[dir];
+    const span = spanAxis === 'x' ? room.size.x : room.size.z;
+
+    const wall = await getModel(scene, ASSETS.ENVIRONMENT.WALL);
+    wall.position = room.position.add(offsetFn(room.size));
+    wall.rotation = new Vector3(0, rotY, 0);
+    // Scale: span covers the side's length, height covers the room height, depth is thin
+    wall.scaling = new Vector3(span / 2.5, room.size.y / 2.5, 0.16);
+    wall.checkCollisions = true;
+    markRoomOccupant(wall, room);
+  }
 }
 
 async function spawnLootBox(scene: Scene, room: RoomNode, is: InteractionSystem, hud: HUD): Promise<Interactable> {
