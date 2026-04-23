@@ -1,0 +1,115 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/hub/HubScene.gd" id="1_hub"]
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/ui/MissionBoardUI.gd" id="3_mb"]
+[ext_resource type="Script" path="res://scripts/ui/ShopUI.gd" id="4_shop"]
+[ext_resource type="Script" path="res://scripts/ui/PerkMenuUI.gd" id="5_perk"]
+[ext_resource type="Script" path="res://scripts/ui/InventoryUI.gd" id="6_inv"]
+[ext_resource type="Script" path="res://scripts/ui/DecryptionUI.gd" id="7_dec"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="8_player"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_terminal"]
+size = Vector3(1.5, 2.5, 1.5)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_npc"]
+radius = 1.8
+
+[node name="Hub" type="Node3D"]
+script = ExtResource("1_hub")
+
+[node name="Player" parent="." instance=ExtResource("8_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 5, 0)
+light_energy = 0.6
+shadow_enabled = true
+
+[node name="HubFloor" type="StaticBody3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="HubFloor"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="TerminalMissionBoard" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TerminalMissionBoard"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="TerminalShop" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 0)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TerminalShop"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="TerminalPerks" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TerminalPerks"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="TerminalDecryption" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TerminalDecryption"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="TerminalDeployment" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TerminalDeployment"]
+shape = SubResource("BoxShape3D_terminal")
+
+[node name="StationNPCArea" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
+collision_layer = 0
+collision_mask = 2
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StationNPCArea"]
+shape = SubResource("SphereShape3D_npc")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="UI"]
+script = ExtResource("2_hud")
+
+[node name="MissionBoardUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("3_mb")
+visible = false
+
+[node name="ShopUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("4_shop")
+visible = false
+
+[node name="PerkMenuUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("5_perk")
+visible = false
+
+[node name="InventoryUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("6_inv")
+visible = false
+
+[node name="DecryptionUI" type="Control" parent="UI"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("7_dec")
+visible = false
