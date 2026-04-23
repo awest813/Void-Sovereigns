@@ -92,12 +92,15 @@ func fire() -> void:
 	_create_muzzle_flash()
 	_emit_ammo_changed()
 
+	# Broadcast gunshot to nearby PerceptionEars AI nodes
+	PerceptionEars.emit_sound_at(_camera.global_position, 1.0, get_tree())
+
 	if _anim_player and _anim_player.has_animation("shoot"):
 		_anim_player.stop()
 		_anim_player.play("shoot")
 
 func melee() -> void:
-	var space := get_world_3d().direct_space_state
+	var space  := get_world_3d().direct_space_state
 	var origin := _camera.global_position
 	var fwd    := -_camera.global_transform.basis.z
 	var query  := PhysicsRayQueryParameters3D.create(origin, origin + fwd * 2.0)
@@ -107,8 +110,8 @@ func melee() -> void:
 		var dmg := _damage * 2.0
 		if ProgressionState.has_perk("DEVASTATOR MELEE"):
 			dmg *= 2.0
-		if c.has_method("take_damage"):
-			c.take_damage(dmg)
+		var packet := DamagePacket.make(dmg, DamagePacket.Type.MELEE, _player)
+		HitPipeline.resolve(packet, c)
 
 func throw_grenade() -> void:
 	if grenade_scene == null:
@@ -152,9 +155,8 @@ func _perform_raycast(spread: float) -> void:
 	var result := space.intersect_ray(query)
 	if result.has("collider"):
 		var c = result["collider"]
-		if c.has_method("take_damage"):
-			c.take_damage(_damage)
-		# Visual flash on hit mesh
+		var packet := DamagePacket.make(_damage, DamagePacket.Type.BALLISTIC, _player)
+		HitPipeline.resolve(packet, c)
 		if result.has("position"):
 			_spawn_impact_particles(result["position"])
 

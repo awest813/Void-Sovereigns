@@ -30,6 +30,7 @@ const _CFG_SECTION := "mission"
 
 func _ready() -> void:
 	load_state()
+	SaveSystem.load_completed.connect(func(_s): load_state())
 
 # ── FSM ──────────────────────────────────────────────────────────────────────
 
@@ -91,23 +92,19 @@ func status_label() -> String:
 # ── Persistence ───────────────────────────────────────────────────────────────
 
 func save_state() -> void:
-	var cfg := ConfigFile.new()
-	cfg.set_value(_CFG_SECTION, "current_scene",      current_scene)
-	cfg.set_value(_CFG_SECTION, "active_mission_id",  active_mission_id)
-	cfg.set_value(_CFG_SECTION, "mission_status",     mission_status)
-	cfg.set_value(_CFG_SECTION, "completed_missions", completed_missions)
-	cfg.set_value(_CFG_SECTION, "flags",              flags)
-	cfg.save("user://save.cfg")
+	SaveSystem.set_value(_CFG_SECTION, "current_scene",      current_scene)
+	SaveSystem.set_value(_CFG_SECTION, "active_mission_id",  active_mission_id)
+	SaveSystem.set_value(_CFG_SECTION, "mission_status",     mission_status)
+	SaveSystem.set_value(_CFG_SECTION, "completed_missions", completed_missions)
+	SaveSystem.set_value(_CFG_SECTION, "flags",              flags)
+	SaveSystem.flush()
 
 func load_state() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://save.cfg") != OK:
-		return
-	current_scene       = cfg.get_value(_CFG_SECTION, "current_scene",      "hub")
-	active_mission_id   = cfg.get_value(_CFG_SECTION, "active_mission_id",  "")
-	mission_status      = cfg.get_value(_CFG_SECTION, "mission_status",     "none")
-	completed_missions  = cfg.get_value(_CFG_SECTION, "completed_missions", [])
-	flags               = cfg.get_value(_CFG_SECTION, "flags",              {})
+	current_scene       = SaveSystem.get_value(_CFG_SECTION, "current_scene",      "hub")
+	active_mission_id   = SaveSystem.get_value(_CFG_SECTION, "active_mission_id",  "")
+	mission_status      = SaveSystem.get_value(_CFG_SECTION, "mission_status",     "none")
+	completed_missions  = SaveSystem.get_value(_CFG_SECTION, "completed_missions", [])
+	flags               = SaveSystem.get_value(_CFG_SECTION, "flags",              {})
 
 func reset() -> void:
 	current_scene      = "hub"
@@ -115,5 +112,4 @@ func reset() -> void:
 	mission_status     = "none"
 	completed_missions = []
 	flags              = {}
-	var cfg := ConfigFile.new()
-	cfg.save("user://save.cfg")
+	SaveSystem.flush()

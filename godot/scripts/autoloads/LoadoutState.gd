@@ -19,6 +19,7 @@ const _CFG_SECTION := "loadout"
 
 func _ready() -> void:
 	load_state()
+	SaveSystem.load_completed.connect(func(_s): load_state())
 
 # ── Mutations ─────────────────────────────────────────────────────────────────
 
@@ -50,19 +51,14 @@ func set_armor_durability(val: int) -> void:
 # ── Persistence ───────────────────────────────────────────────────────────────
 
 func save_state() -> void:
-	var cfg := ConfigFile.new()
-	cfg.load("user://save.cfg")
-	cfg.set_value(_CFG_SECTION, "weapon_damage",    weapon_damage)
-	cfg.set_value(_CFG_SECTION, "armor_durability", armor_durability)
-	cfg.set_value(_CFG_SECTION, "equipped_weapon",  equipped_weapon)
-	cfg.set_value(_CFG_SECTION, "ammo",             ammo)
-	cfg.save("user://save.cfg")
+	SaveSystem.set_value(_CFG_SECTION, "weapon_damage",    weapon_damage)
+	SaveSystem.set_value(_CFG_SECTION, "armor_durability", armor_durability)
+	SaveSystem.set_value(_CFG_SECTION, "equipped_weapon",  equipped_weapon)
+	SaveSystem.set_value(_CFG_SECTION, "ammo",             ammo)
+	SaveSystem.flush()
 
 func load_state() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://save.cfg") != OK:
-		return
-	weapon_damage    = cfg.get_value(_CFG_SECTION, "weapon_damage",    10)
-	armor_durability = cfg.get_value(_CFG_SECTION, "armor_durability", 100)
-	equipped_weapon  = cfg.get_value(_CFG_SECTION, "equipped_weapon",  "pistol")
-	ammo             = cfg.get_value(_CFG_SECTION, "ammo",             {"pistol":60,"shotgun":12,"smg":120})
+	weapon_damage    = SaveSystem.get_value(_CFG_SECTION, "weapon_damage",    10)
+	armor_durability = SaveSystem.get_value(_CFG_SECTION, "armor_durability", 100)
+	equipped_weapon  = SaveSystem.get_value(_CFG_SECTION, "equipped_weapon",  "pistol")
+	ammo             = SaveSystem.get_value(_CFG_SECTION, "ammo",             {"pistol":60,"shotgun":12,"smg":120})

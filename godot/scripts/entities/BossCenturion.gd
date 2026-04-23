@@ -1,5 +1,6 @@
 extends CharacterBody3D
 ## BossCenturion — SecurityBot with phase transitions. Extends SecurityBot pattern.
+## Uses CombatantComponent for damage intake and SKLootTable for drops.
 
 signal phase_changed(phase: int)
 
@@ -20,7 +21,10 @@ enum AIState { PHASE1, PHASE2, PHASE3, DEAD }
 @export var damage_p3: float     = 28.0
 @export var max_speed: float     = 4.5
 
-var _health: float
+## Optional boss loot table. Falls back to LootData.TABLE_BOSS when null.
+@export var loot_table: SKLootTable = null
+
+var _combatant: CombatantComponent = null
 var _state: AIState = AIState.PHASE1
 var _player: Node3D = null
 var _player_health: Node = null
@@ -28,8 +32,16 @@ var _hud: Node = null
 var _last_fire_time: float = 0.0
 
 func _ready() -> void:
-	_health = max_health
 	add_to_group("enemies")
+
+	_combatant = CombatantComponent.new()
+	_combatant.name        = "CombatantComponent"
+	_combatant.max_health  = max_health
+	_combatant.poise_threshold = 9999.0   # Boss never staggers from poise
+	_combatant.iframe_duration = 0.1
+	add_child(_combatant)
+	_combatant.died.connect(_die)
+	_combatant.damaged.connect(func(_pkt, _amt): _check_phase_transition())
 
 func setup(player: Node3D, player_health: Node, hud: Node) -> void:
 	_player        = player
@@ -52,7 +64,7 @@ func _physics_process(delta: float) -> void:
 		_move(delta)
 
 func _check_phase_transition() -> void:
-	var pct := _health / max_health
+	var pct := _combatant.get_health_percent()
 	var new_state := _state
 	if pct > 0.66:
 		new_state = AIState.PHASE1
@@ -94,8 +106,9 @@ func _attack() -> void:
 	if now - _last_fire_time < rate:
 		return
 	_last_fire_time = now
-	if _player_health and _player_health.has_method("take_damage"):
-		_player_health.take_damage(dmg)
+	if _player_health:
+		var packet := DamagePacket.make(dmg, DamagePacket.Type.BALLISTIC, self)
+		HitPipeline.resolve(packet, _player_health)
 	if muzzle_light:
 		muzzle_light.light_energy = 5.0
 		await get_tree().create_timer(0.05).timeout
@@ -105,16 +118,20 @@ func _attack() -> void:
 func take_damage(amount: float) -> void:
 	if _state == AIState.DEAD:
 		return
-	_health -= amount
-	if _health <= 0.0:
-		_die()
+	_combatant.take_damage(amount)
 
 func _die() -> void:
 	_state = AIState.DEAD
-	# Boss loot drop
-	var loot := LootData.roll_tier("BOSS")
-	if not loot.is_empty():
-		EconomyState.add_loot(loot)
+	# Drop loot — prefer exported SKLootTable, fall back to LootData.TABLE_BOSS
+	var ctx := {"level": ProgressionState.level}
+	var drops: Array = []
+	if loot_table != null:
+		drops = loot_table.roll(ctx)
+	else:
+		drops = SKLootTable.from_array(LootData.TABLE_BOSS).roll(ctx)
+	for item in drops:
+		EconomyState.add_loot(item)
+
 	if ProgressionState.add_xp(3000):
 		if _hud and _hud.has_method("show_level_up"):
 			_hud.show_level_up()

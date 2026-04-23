@@ -34,6 +34,14 @@ func _process(delta: float) -> void:
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
+## DamagePacket-aware entry point used by HitPipeline.
+func receive(packet: DamagePacket) -> float:
+	var amount := packet.amount
+	if packet.is_crit:
+		amount *= 1.5
+	take_damage(amount)
+	return amount
+
 func take_damage(amount: float) -> void:
 	if current_health <= 0.0:
 		return

@@ -13,11 +13,12 @@ config_version=5
 config/name="Void Sovereigns"
 config/tags=PackedStringArray("fps", "singleplayer", "horror", "extraction")
 run/main_scene="res://scenes/hub.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
+SaveSystem="*res://scripts/system/SaveSystem.gd"
 Global="*res://scripts/Global.gd"
 MissionState="*res://scripts/autoloads/MissionState.gd"
 EconomyState="*res://scripts/autoloads/EconomyState.gd"
@@ -27,6 +28,9 @@ ProgressionState="*res://scripts/autoloads/ProgressionState.gd"
 SceneManager="*res://scripts/autoloads/SceneManager.gd"
 GameAssetManager="*res://scripts/autoloads/GameAssetManager.gd"
 DataManager="*res://scripts/content/DataManager.gd"
+HitPipeline="*res://scripts/combat/HitPipeline.gd"
+QuestGraphEngine="*res://scripts/quests/QuestGraphEngine.gd"
+SpawnTrackerManager="*res://scripts/system/SpawnTrackerManager.gd"
 
 [debug]
 

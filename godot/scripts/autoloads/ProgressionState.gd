@@ -16,6 +16,7 @@ const _CFG_SECTION := "progression"
 
 func _ready() -> void:
 	load_state()
+	SaveSystem.load_completed.connect(func(_s): load_state())
 
 # ── XP & Leveling ─────────────────────────────────────────────────────────────
 
@@ -56,19 +57,14 @@ func xp_to_next_level() -> int:
 # ── Persistence ───────────────────────────────────────────────────────────────
 
 func save_state() -> void:
-	var cfg := ConfigFile.new()
-	cfg.load("user://save.cfg")
-	cfg.set_value(_CFG_SECTION, "xp",          xp)
-	cfg.set_value(_CFG_SECTION, "level",        level)
-	cfg.set_value(_CFG_SECTION, "perks",        perks)
-	cfg.set_value(_CFG_SECTION, "perk_points",  perk_points)
-	cfg.save("user://save.cfg")
+	SaveSystem.set_value(_CFG_SECTION, "xp",         xp)
+	SaveSystem.set_value(_CFG_SECTION, "level",      level)
+	SaveSystem.set_value(_CFG_SECTION, "perks",      perks)
+	SaveSystem.set_value(_CFG_SECTION, "perk_points", perk_points)
+	SaveSystem.flush()
 
 func load_state() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://save.cfg") != OK:
-		return
-	xp          = cfg.get_value(_CFG_SECTION, "xp",         0)
-	level       = cfg.get_value(_CFG_SECTION, "level",       1)
-	perks       = cfg.get_value(_CFG_SECTION, "perks",       [])
-	perk_points = cfg.get_value(_CFG_SECTION, "perk_points", 0)
+	xp          = SaveSystem.get_value(_CFG_SECTION, "xp",          0)
+	level       = SaveSystem.get_value(_CFG_SECTION, "level",       1)
+	perks       = SaveSystem.get_value(_CFG_SECTION, "perks",       [])
+	perk_points = SaveSystem.get_value(_CFG_SECTION, "perk_points", 0)
