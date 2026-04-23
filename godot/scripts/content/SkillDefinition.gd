@@ -3,7 +3,7 @@ extends Resource
 ## Skill resource — active/passive abilities authored as .tres files under
 ## `res://content/skills/`. Skills are separate from perks: they consume
 ## skill_points (earned every 2 levels) and active skills can be bound to the
-## player hotbar (Q/E/R) for in-mission use.
+## player hotbar (Z/X/V) for in-mission use.
 
 enum Kind { ACTIVE, PASSIVE }
 enum Branch { COMBAT, SURVIVAL, TECH, VOID }

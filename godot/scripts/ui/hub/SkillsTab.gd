@@ -115,7 +115,7 @@ func _build_row(def: SkillDefinition) -> Control:
 	info.add_child(desc_lbl)
 	if def.is_active():
 		var meta := Label.new()
-		meta.text = "CD %ss · E %s" % [def.cooldown, def.energy_cost]
+		meta.text = "CD %.1fs · E %d" % [def.cooldown, def.energy_cost]
 		meta.add_theme_color_override("font_color", Palette.TEXT_MUTED)
 		meta.add_theme_font_size_override("font_size", 11)
 		info.add_child(meta)

@@ -242,17 +242,20 @@ func load_state() -> void:
 					"mods":      entry.get("mods", []),
 					"grid_pos":  Vector2i(int(entry.get("gx", -1)), int(entry.get("gy", -1))),
 				})
-	# Migration: pull in EconomyState legacy inventory on first load if it
-	# holds items and we have none yet.
-	if stacks.is_empty():
+	# Migration: pull in EconomyState legacy inventory exactly once, the
+	# first time we load into a save that still has the old shape. A sentinel
+	# flag ensures we don't re-migrate every time the player empties their
+	# inventory legitimately.
+	var migrated: bool = SaveSystem.get_value(_CFG_SECTION, "legacy_migrated", false)
+	if stacks.is_empty() and not migrated:
 		var legacy: Variant = SaveSystem.get_value("economy", "inventory", [])
 		if legacy is Array and not legacy.is_empty():
 			for item in legacy:
 				if item is Dictionary:
 					add_item_dict(item)
-			# Clear legacy inventory to prevent double-migration next load.
 			SaveSystem.set_value("economy", "inventory", [])
-			SaveSystem.flush()
+		SaveSystem.set_value(_CFG_SECTION, "legacy_migrated", true)
+		SaveSystem.flush()
 	inventory_changed.emit()
 
 # ── Internal ──────────────────────────────────────────────────────────────────
