@@ -70,7 +70,9 @@ func fire() -> void:
 		reload()
 		return
 	var def := _current_weapon_def()
-	var rate: float = def.fire_rate if def else FIRE_RATES.get(_current_weapon, 0.25)
+	var rate: float = FIRE_RATES.get(_current_weapon, 0.25)
+	if def:
+		rate = def.fire_rate
 	if now - _last_fire_time < rate:
 		return
 	_last_fire_time = now
@@ -81,8 +83,11 @@ func fire() -> void:
 	_shake_camera(_current_weapon == "shotgun")
 
 	# Fire pellets — prefer definition values over the hard-coded tables.
-	var spread: float = def.recoil if def else SPREADS.get(_current_weapon, 0.01)
-	var pellets: int = def.pellets if def else (10 if _current_weapon == "shotgun" else 1)
+	var spread: float = SPREADS.get(_current_weapon, 0.01)
+	var pellets: int = 10 if _current_weapon == "shotgun" else 1
+	if def:
+		spread = def.recoil
+		pellets = def.pellets
 	for _i in pellets:
 		_perform_raycast(spread)
 
@@ -153,7 +158,9 @@ func _perform_raycast(spread: float) -> void:
 	if result.has("collider"):
 		var c = result["collider"]
 		var def := _current_weapon_def()
-		var dmg_type := int(def.damage_type) if def else int(DamagePacket.Type.BALLISTIC)
+		var dmg_type: int = int(DamagePacket.Type.BALLISTIC)
+		if def:
+			dmg_type = int(def.damage_type)
 		var packet := DamagePacket.make(_damage, dmg_type, _player)
 		HitPipeline.resolve(packet, c)
 		if result.has("position"):
