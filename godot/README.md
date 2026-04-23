@@ -119,8 +119,117 @@ Place GLB files from `public/assets/` into `res://assets/` following the paths i
 - Wire real GLB room meshes into `scenes/rooms/` (one `.tscn` per `room_type`)
 - Add `AudioStream` assets into `audio/` and connect to `RadioChatter.gd`
 - Bake `NavigationMesh` per room template or at mission runtime
-- Build Godot `Theme` resource for sci-fi UI styling
+- ~~Build Godot `Theme` resource for sci-fi UI styling~~ ✅ — see **Hub UI (Marathon × Tarkov)** below
 - Polish: animation blending, particle effects, post-process env
+
+---
+
+## Hub UI (Marathon × Tarkov)
+
+The hub now ships with a **full-screen shell** (`scripts/ui/hub/HubShell.gd`)
+laid out in classic extraction-shooter density: top bar (credits / XP / perk &
+skill pips), left nav rail, tab content, bottom status hint bar. The shell is
+purely code-constructed and automatically instantiated by `HubScene.gd`; toggle
+with the new input actions:
+
+| Action          | Default key(s) | Tab opened |
+|-----------------|----------------|------------|
+| `ui_inventory`  | `I` / `Tab`    | INVENTORY  |
+| `ui_character`  | `C`            | CHARACTER  |
+| `ui_perks`      | `P`            | PERKS      |
+| `ui_skills`     | `K`            | SKILLS     |
+| `ui_map`        | `M`            | (reserved) |
+| `skill_slot_1`  | `Z`            | hotbar 1   |
+| `skill_slot_2`  | `X`            | hotbar 2   |
+| `skill_slot_3`  | `V`            | hotbar 3   |
+
+### Tabs
+`CharacterTab` paper-doll slots + damage-resistance readout · `InventoryTab`
+rarity-bordered tile grid with filter strip + SORT · `LoadoutTab` primary /
+secondary / melee slots with DPS & ammo · `PerksTab` three-branch × five-tier
+matrix with prerequisite lines drawn in `_draw()` · `SkillsTab` list + Z/X/V
+hotbar binder · `TraderTab` Kirov sell list with market-saturation pricing ·
+`LaunchTab` contract cards with READY check and `DEPLOY`.
+
+### Theme palette (`scripts/ui/theme/HubPalette.gd`)
+- Backgrounds: `#0b0e11`, `#14181c`, `#1b2026`
+- Accent: `#2be0c8` (teal) · Warn: `#e07a2b` · Danger: `#d94a4a`
+- Rarity accents: grey / green / blue / purple / gold
+- Spacing scale: 2 / 4 / 8 / 16 / 24; 0 corner radius; 1 px borders
+- Optional scanline+grain shader (`hub_grain.gdshader`) applied to the full-screen background
+
+## Content Registry & Typed Resources
+
+Weapons, armor, perks, and skills are authored as `Resource` subclasses under
+`scripts/content/`:
+
+| Resource             | Notes |
+|----------------------|-------|
+| `ItemDefinition`     | Base class — id/display_name/rarity/grid_w×h/category/stack_size |
+| `WeaponDefinition`   | damage / fire_rate / mag_size / recoil / pellets / damage_type; `dps()` helper |
+| `ArmorDefinition`    | slot (HEAD/CHEST/LEGS/ARMS/BACKPACK/RIG) / resistances per DamagePacket.Type / move_speed/stealth / container grid |
+| `PerkDefinition`     | branch (COMBAT/SURVIVAL/TECH/VOID) × tier 1–5 / requires / stat_mods |
+| `SkillDefinition`    | ACTIVE/PASSIVE / cooldown / energy_cost / requires / optional script hook |
+
+`ContentRegistry` (autoload) scans `res://content/{weapons,armor,perks,skills}/`
+for `.tres` files and falls back to a code-defined seed catalogue
+(`ContentSeeds.gd`) so the project is always runnable:
+
+- **Weapons**: Kestrel .357, Hornet SMG, Breacher 12G, Lancer Mk-IV, Void Maul
+- **Armor**: Scout Hood, Centurion Helm, Rigger / Marauder / Voidforged chest tiers, Scavenger Rig, Drifter Pack
+- **Perks**: 15 perks across COMBAT / SURVIVAL / TECH (5 tiers each)
+- **Skills**: Impulse Surge, Scavenger Eye, Void Lance, Stalwart, Field Medic, Voidwalker
+
+To author new items, drop a `.tres` file (with matching `id`) into the
+corresponding folder; on next load it overrides the seed entry.
+
+## Grid Inventory (`InventoryState` autoload)
+
+Inventory is now grid-aware. Capacity is derived from the equipped RIG +
+BACKPACK (`ArmorDefinition.container_w × container_h`); `EconomyState.inventory`
+is a read-mostly facade kept for backwards compatibility with older UI scripts.
+
+API:
+```
+InventoryState.add_item(id, count=1)
+InventoryState.remove_item(id, count=1)
+InventoryState.move_item(stack, Vector2i(x, y))
+InventoryState.sort()
+InventoryState.can_fit(id, count=1) -> bool
+InventoryState.total_capacity() -> int
+InventoryState.remaining_capacity() -> int
+```
+
+Signals: `inventory_changed`, `item_added`, `item_removed`, `capacity_changed`.
+
+## Progression Extensions
+
+`ProgressionState` now tracks **skills** alongside perks:
+- `skill_points` earned at **1 per 2 character levels**
+- `can_unlock_perk(id)` enforces `PerkDefinition.requires` + tier gating (`level >= tier * 5`)
+- `can_unlock_skill(id)` enforces `SkillDefinition.requires` + level gating
+- `bind_skill_to_slot(i, id)` binds an active skill to hotbar slot 0..2 (Z/X/V)
+
+Legacy perk ids (e.g. `"TITAN SHIELDS"`) are aliased internally to the new ids
+(`"titan_shields"`), so older saves and call-sites keep working.
+
+## Loadout Slots
+
+`LoadoutState` has expanded from a single `equipped_weapon` string to:
+- `equipped_primary` / `equipped_secondary` / `equipped_melee` — WeaponDefinition ids
+- `equipped_armor: Dictionary[slot → id]` — armor slots
+- `equipped_rig` — convenience alias for the `rig` armor slot
+- `aggregate_resistance(damage_type: int)` — product of all equipped armor multipliers
+- Legacy fields (`equipped_weapon`, `ammo`, `weapon_damage`, `armor_durability`) are preserved as facades so `WeaponSystem.gd`, `HUD.gd`, `ShopUI.gd` etc. keep working unchanged.
+
+`WeaponSystem.gd` now reads `damage / fire_rate / recoil / pellets / damage_type`
+from the `WeaponDefinition` of the currently equipped primary (via
+`ContentRegistry`), falling back to its original hard-coded tables when no
+definition is found.
+
+`HealthSystem.receive()` on the player applies `LoadoutState.aggregate_resistance()`
+so equipped armor actually mitigates incoming `DamagePacket`s by type.
+
 
 ---
 

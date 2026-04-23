@@ -57,13 +57,34 @@ func get_next_mission() -> Dictionary:
 	return {}
 
 func get_perks() -> Array:
+	# Prefer ContentRegistry (typed PerkDefinitions) when available; fall
+	# back to the static PERKS array for any environment that doesn't have
+	# the registry loaded yet.
+	if Engine.has_singleton("ContentRegistry") or (get_tree() and get_tree().root.has_node("ContentRegistry")):
+		var cr := _registry()
+		if cr:
+			var perks: Array = []
+			for p in cr.perks():
+				perks.append(p.to_dict())
+			if not perks.is_empty():
+				return perks
 	return PERKS
 
 func get_perk(id: String) -> Dictionary:
+	var cr := _registry()
+	if cr:
+		var def := cr.get_perk(StringName(id))
+		if def:
+			return def.to_dict()
 	for p in PERKS:
 		if p["id"] == id:
 			return p
 	return {}
+
+func _registry() -> Node:
+	if get_tree() == null:
+		return null
+	return get_tree().root.get_node_or_null("ContentRegistry")
 
 func get_loot_table(tier: String) -> Array:
 	match tier:

@@ -28,9 +28,10 @@ func refresh() -> void:
 		var desc_lbl := Label.new()
 		desc_lbl.text = perk["description"]
 		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		var can_unlock: bool = owned == false and ProgressionState.can_unlock_perk(perk["id"])
 		var btn := Button.new()
 		btn.text = "OWNED" if owned else "UNLOCK (%d pt)" % perk.get("cost", 1)
-		btn.disabled = owned or ProgressionState.perk_points < perk.get("cost", 1)
+		btn.disabled = owned or not can_unlock
 		btn.pressed.connect(func(id=perk["id"]): _unlock(id))
 		vbox.add_child(icon_lbl)
 		vbox.add_child(name_lbl)

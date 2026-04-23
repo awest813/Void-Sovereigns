@@ -69,6 +69,9 @@ func _collect() -> void:
 		LoadoutState.add_ammo("shotgun",  2)
 		LoadoutState.add_ammo("smg",     20)
 	else:
+		# Route through the grid-aware inventory. EconomyState.add_loot()
+		# proxies to InventoryState.add_item_dict() and preserves the
+		# legacy inventory_changed signal for any existing UI.
 		EconomyState.add_loot(item_data)
 
 	item_collected.emit(item_data)
