@@ -40,6 +40,10 @@ func _process(_delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
 		_player_nearby = true
+		if _hud == null:
+			var hud_nodes := get_tree().get_nodes_in_group("hud")
+			if not hud_nodes.is_empty():
+				_hud = hud_nodes[0]
 		if _hud and _hud.has_method("show_interact_prompt"):
 			_hud.show_interact_prompt(prompt_text)
 

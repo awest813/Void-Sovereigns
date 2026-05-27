@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/ui/InventoryUI.gd" id="6_inv"]
 [ext_resource type="Script" path="res://scripts/ui/DecryptionUI.gd" id="7_dec"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="8_player"]
+[ext_resource type="Script" path="res://scripts/entities/StationNPC.gd" id="9_npc"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_terminal"]
 size = Vector3(1.5, 2.5, 1.5)
@@ -74,6 +75,7 @@ shape = SubResource("BoxShape3D_terminal")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
 collision_layer = 0
 collision_mask = 1
+script = ExtResource("9_npc")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StationNPCArea"]
 shape = SubResource("SphereShape3D_npc")
 
