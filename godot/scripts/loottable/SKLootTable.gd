@@ -48,7 +48,7 @@ static func from_array(tier_array: Array, min_r: int = 1, max_r: int = 1) -> SKL
 	tbl.min_rolls = min_r
 	tbl.max_rolls = max_r
 	for item in tier_array:
-		var entry := item.duplicate()
+		var entry: Dictionary = (item as Dictionary).duplicate() if item is Dictionary else {}
 		if not entry.has("item_id"):
 			entry["item_id"] = entry.get("id", "")
 		if not entry.has("item_name"):

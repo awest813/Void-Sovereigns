@@ -112,4 +112,4 @@ func reset() -> void:
 	mission_status     = "none"
 	completed_missions = []
 	flags              = {}
-	SaveSystem.flush()
+	save_state()

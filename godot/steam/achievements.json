@@ -1,0 +1,18 @@
+{
+  "note": "Create these in the Steamworks partner site before release. API names must match AchievementCatalog.gd. App ID 480 is Spacewar and is refused in release exports.",
+  "stats": [
+    {"api": "extractions", "type": "int", "display": "Successful extractions"},
+    {"api": "deaths", "type": "int", "display": "Deaths on contract"}
+  ],
+  "achievements": [
+    {"api": "FIRST_CONTRACT", "display": "Contract Signed", "desc": "Accept a contract."},
+    {"api": "COLD_DROP", "display": "Cold Drop", "desc": "Deploy into a derelict."},
+    {"api": "PACKAGE_SECURED", "display": "Package Secured", "desc": "Secure a mission objective."},
+    {"api": "EXTRACTED", "display": "Extracted", "desc": "Extract from a contract."},
+    {"api": "VETERAN", "display": "Repeat Offender", "desc": "Extract from three contracts."},
+    {"api": "KIA", "display": "Killed in Action", "desc": "Die on a contract."},
+    {"api": "TRADER", "display": "Black Market", "desc": "Sell an item to the trader."},
+    {"api": "PROMOTED", "display": "Field Promotion", "desc": "Reach operator level 2."},
+    {"api": "GEAR_UP", "display": "Suited", "desc": "Equip a piece of armor."}
+  ]
+}

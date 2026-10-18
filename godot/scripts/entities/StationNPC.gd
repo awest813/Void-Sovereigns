@@ -64,7 +64,7 @@ func _interact() -> void:
 		_active_session.start(dialogue_definition)
 	else:
 		# Legacy fallback
-		var line := dialog_lines[randi() % dialog_lines.size()] if dialog_lines.size() > 0 else ""
+		var line: String = String(dialog_lines[randi() % dialog_lines.size()]) if dialog_lines.size() > 0 else ""
 		if _hud and _hud.has_method("show_message"):
 			_hud.show_message(line, 4.0)
 

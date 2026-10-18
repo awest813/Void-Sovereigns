@@ -67,7 +67,7 @@ func update(delta: float, tgt: Node3D, parent: Node3D) -> int:
 		return _perception_level()
 
 	# ── Suspicion gain ────────────────────────────────────────────────────────
-	var expo_val    := tgt.get_exposure_score() if tgt.has_method("get_exposure_score") else 1.0
+	var expo_val: float = float(tgt.call("get_exposure_score")) if tgt.has_method("get_exposure_score") else 1.0
 	var range_factor := maxf(0.15, 1.0 - dist / detection_range)
 
 	var gain: float

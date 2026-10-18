@@ -102,11 +102,13 @@ func fire() -> void:
 		_anim_player.play("shoot")
 
 func melee() -> void:
-	var space  := get_world_3d().direct_space_state
+	var space := _ray_space()
+	if space == null:
+		return
 	var origin := _camera.global_position
 	var fwd    := -_camera.global_transform.basis.z
 	var query  := PhysicsRayQueryParameters3D.create(origin, origin + fwd * 2.0)
-	var result := space.intersect_ray(query)
+	var result: Dictionary = space.intersect_ray(query)
 	if result.has("collider"):
 		var c = result["collider"]
 		var dmg := _damage * 2.0
@@ -126,8 +128,8 @@ func throw_grenade() -> void:
 func reload() -> void:
 	if _is_reloading:
 		return
-	var reserve := LoadoutState.ammo.get(_current_weapon, 0)
-	var needed  := _max_mag.get(_current_weapon, 0) - _current_mag.get(_current_weapon, 0)
+	var reserve: int = int(LoadoutState.ammo.get(_current_weapon, 0))
+	var needed: int = int(_max_mag.get(_current_weapon, 0)) - int(_current_mag.get(_current_weapon, 0))
 	if needed <= 0 or reserve <= 0:
 		return
 	_is_reloading = true
@@ -144,7 +146,7 @@ func reload() -> void:
 func _perform_raycast(spread: float) -> void:
 	if not _player.has_method("get_accuracy_penalty"):
 		return
-	var adjusted_spread := spread * _player.get_accuracy_penalty()
+	var adjusted_spread: float = spread * _player.get_accuracy_penalty()
 	var origin := _camera.global_position
 	var fwd    := -_camera.global_transform.basis.z
 	fwd.x += randf_range(-adjusted_spread, adjusted_spread)
@@ -152,9 +154,11 @@ func _perform_raycast(spread: float) -> void:
 	fwd.z += randf_range(-adjusted_spread, adjusted_spread)
 	fwd    = fwd.normalized()
 
-	var space  := get_world_3d().direct_space_state
+	var space := _ray_space()
+	if space == null:
+		return
 	var query  := PhysicsRayQueryParameters3D.create(origin, origin + fwd * 50.0)
-	var result := space.intersect_ray(query)
+	var result: Dictionary = space.intersect_ray(query)
 	if result.has("collider"):
 		var c = result["collider"]
 		var def := _current_weapon_def()
@@ -165,6 +169,14 @@ func _perform_raycast(spread: float) -> void:
 		HitPipeline.resolve(packet, c)
 		if result.has("position"):
 			_spawn_impact_particles(result["position"])
+
+func _ray_space() -> PhysicsDirectSpaceState3D:
+	if _camera == null:
+		return null
+	var world := _camera.get_world_3d()
+	if world == null:
+		return null
+	return world.direct_space_state
 
 func _refresh_stats() -> void:
 	var lvl := ProgressionState.level

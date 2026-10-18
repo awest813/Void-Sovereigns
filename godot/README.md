@@ -9,7 +9,41 @@ built on top of [`awest813/Void-Sovereigns-FPS`](https://github.com/awest813/Voi
 2. Open **Project Manager** → **Import** → navigate to `godot/` → select `project.godot`
 3. Click **Import & Edit**
 
-> **No build step required.** Open in the editor and press F5 to run.## Project Structure
+> **No build step required.** Open in the editor and press F5 to run. The game boots to the title screen.
+
+## Steam release
+
+Version **1.0.0** is set up to export and to talk to Steamworks. The title screen is the main scene.
+
+| Piece | Where |
+| --- | --- |
+| Continue / New Game / Settings / Credits / Quit | `scenes/main_menu.tscn` |
+| Video, audio, look, rebinding | `user://settings.cfg` via `GameSettings` (not wiped by New Game) |
+| Pause, abandon, quit | Esc or Start. Steam overlay pauses the simulation |
+| Failed run | KIA debrief, then return to the station. No payout |
+| Achievements and cloud slot | `SteamService` + `steam/achievements.json` |
+| Export | `export_presets.cfg` — Windows, Linux, macOS. Excludes `steam_appid.txt` |
+
+Gamepad: left stick move, right stick look, RT fire, A jump, B crouch, X interact, Y reload, L3 sprint, R3 melee, LB dash, RB grenade, D-pad up flashlight, Start pause. Menus use the stick, D-pad, A, and B.
+
+### Before you upload
+
+1. Install [Godot 4.4.1 export templates](https://godotengine.org/download) and a [GodotSteam](https://godotsteam.com/) GDExtension build for 4.4 into `addons/`. Ship the Steamworks redistributable next to the executable (it comes with GodotSteam; do not commit it).
+2. In Steamworks, create the achievements and stats listed in `steam/achievements.json`. Names must match.
+3. Replace `steam/app_id.txt` (`480`) with your App ID. **Release exports refuse 480**, which is Valve's Spacewar test app. `steam_appid.txt` is only for running from the editor and is excluded from the package.
+4. Export with `steam/export_release.sh` (or the editor). Output lands in `build/windows`, `build/linux`, and `build/macos`.
+5. Upload with `steamcmd` using `steam/app_build.vdf.example` as the depot map. Point Steam Auto-Cloud at the Godot user dir only if you want a second copy of saves; Remote Storage already syncs `user://saves/slot_0.cfg` when Steam is connected.
+6. Run a headless sanity check from the repo root:
+
+```bash
+godot --headless --path godot -- --release-check
+```
+
+The check prints `RELEASE_CHECK_OK` when the boot scene, hub, mission, player, achievements file, export presets, settings round-trip, and gamepad actions all load.
+
+Launch from Steam once and confirm the overlay pauses the game, an achievement unlocks on the first contract, and a save written on one machine appears on another after a restart.
+
+## Project Structure
 
 ```
 godot/

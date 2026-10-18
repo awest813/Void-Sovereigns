@@ -48,8 +48,8 @@ func choose(index: int) -> void:
 
 ## Advance through a node that has no choices (auto_next or end).
 func advance() -> void:
-	var node    := current_node()
-	var effects := node.get("effects", [])
+	var node: Dictionary = current_node()
+	var effects: Array = node.get("effects", [])
 	var choices := valid_choices()
 	if not choices.is_empty():
 		return   # Must use choose() when choices are present
@@ -73,8 +73,8 @@ func _goto(node_id: String) -> void:
 		return
 	node_changed.emit(node)
 	# If no choices and no auto_next, apply effects and end automatically
-	var choices  := _filtered_choices(node.get("choices", []))
-	var auto_nxt := node.get("auto_next", "")
+	var choices: Array = _filtered_choices(node.get("choices", []))
+	var auto_nxt: String = String(node.get("auto_next", ""))
 	if choices.is_empty() and auto_nxt.is_empty():
 		_apply_effects(node.get("effects", []))
 		dialogue_ended.emit()

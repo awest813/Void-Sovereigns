@@ -18,6 +18,7 @@ var _completed_quests: Array      = []
 
 func _ready() -> void:
 	load_state()
+	SaveSystem.load_completed.connect(func(_s): load_state())
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -164,6 +165,7 @@ func save_state() -> void:
 	SaveSystem.flush()
 
 func load_state() -> void:
+	_active_quests.clear()
 	_completed_quests = SaveSystem.get_value("quests", "completed", [])
 	# Active quest state (without definitions) is kept for informational purposes;
 	# call start_quest() again after load to restore with full definitions.

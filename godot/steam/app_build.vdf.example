@@ -1,0 +1,19 @@
+"AppBuild"
+{
+	"AppID" "YOUR_APP_ID"
+	"Desc" "Void Sovereigns 1.0.0"
+	"ContentRoot" "../../build/windows/"
+	"BuildOutput" "../../build/steam_output/"
+	"Depots"
+	{
+		"YOUR_WINDOWS_DEPOT_ID"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "*"
+				"DepotPath" "."
+				"recursive" "1"
+			}
+		}
+	}
+}

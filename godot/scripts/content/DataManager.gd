@@ -71,11 +71,11 @@ func get_perks() -> Array:
 	return PERKS
 
 func get_perk(id: String) -> Dictionary:
-	var cr := _registry()
-	if cr:
-		var def := cr.get_perk(StringName(id))
-		if def:
-			return def.to_dict()
+	var cr: Node = _registry()
+	if cr and cr.has_method("get_perk"):
+		var def: Variant = cr.call("get_perk", StringName(id))
+		if def is PerkDefinition:
+			return (def as PerkDefinition).to_dict()
 	for p in PERKS:
 		if p["id"] == id:
 			return p
