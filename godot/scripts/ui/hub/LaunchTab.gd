@@ -47,7 +47,7 @@ func refresh() -> void:
 func _build_card(mission: Dictionary) -> Control:
 	var panel := PanelContainer.new()
 	var style := Palette.panel_style()
-	var is_active := MissionState.active_mission_id == mission.get("id", "")
+	var is_active: bool = MissionState.active_mission_id == String(mission.get("id", ""))
 	if is_active:
 		style.border_color = Palette.ACCENT
 		style.set_border_width_all(2)
@@ -119,6 +119,7 @@ func _readiness_text() -> String:
 	checks.append("[%s] Primary weapon equipped" % ("✓" if w else "·"))
 	var has_chest := LoadoutState.get_equipped_armor("chest") != null
 	checks.append("[%s] Chest armor equipped" % ("✓" if has_chest else "·"))
-	var has_ammo := w != null and (w.weapon_class == WeaponDefinition.WeaponClass.MELEE or LoadoutState.ammo.get(w.legacy_weapon_type(), 0) > 0)
+	var ammo_left: int = int(LoadoutState.ammo.get(w.legacy_weapon_type(), 0)) if w != null else 0
+	var has_ammo: bool = w != null and (w.weapon_class == WeaponDefinition.WeaponClass.MELEE or ammo_left > 0)
 	checks.append("[%s] Ammo reserve > 0" % ("✓" if has_ammo else "·"))
 	return "   ".join(checks)

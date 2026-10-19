@@ -26,11 +26,16 @@ func _process(_delta: float) -> void:
 		_current["callback"].call()
 
 func _check_interaction() -> void:
-	var space := get_world_3d().direct_space_state
+	if _camera == null:
+		return
+	var world := _camera.get_world_3d()
+	if world == null:
+		return
+	var space: PhysicsDirectSpaceState3D = world.direct_space_state
 	var origin := _camera.global_position
 	var fwd    := -_camera.global_transform.basis.z
 	var query  := PhysicsRayQueryParameters3D.create(origin, origin + fwd * interact_range)
-	var result := space.intersect_ray(query)
+	var result: Dictionary = space.intersect_ray(query)
 
 	var found: Dictionary = {}
 	if result.has("collider"):

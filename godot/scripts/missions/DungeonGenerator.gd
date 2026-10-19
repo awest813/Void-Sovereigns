@@ -1,3 +1,4 @@
+class_name DungeonGenerator
 extends RefCounted
 ## DungeonGenerator — direct port of DungeonGenerator.ts
 ## Generates a seeded grid-based dungeon: critical path + branch rooms.
@@ -41,16 +42,16 @@ func generate(seed_val: float) -> Array:
 	var critical_path := _build_critical_path(9)
 
 	for depth in critical_path.size():
-		var pt := critical_path[depth]
-		_ensure_cell(cells, pt.x, pt.y, true, depth)
+		var pt: Dictionary = critical_path[depth]
+		_ensure_cell(cells, int(pt.x), int(pt.y), true, depth)
 		if depth > 0:
-			var prev := critical_path[depth - 1]
+			var prev: Dictionary = critical_path[depth - 1]
 			_connect_cells(cells, prev.x, prev.y, pt.x, pt.y)
 
 	for i in range(1, critical_path.size() - 2):
 		if _mulberry32_next() > 0.55:
 			continue
-		var pt := critical_path[i]
+		var pt: Dictionary = critical_path[i]
 		_build_branch(cells, pt.x, pt.y, 1 + int(_mulberry32_next() * 3), i + 1)
 
 	var max_depth := critical_path.size() - 1
@@ -66,7 +67,7 @@ func _build_critical_path(length: int) -> Array:
 	var heading := "E" if _mulberry32_next() > 0.5 else "S"
 
 	while path.size() < length:
-		var current := path[path.size() - 1]
+		var current: Dictionary = path[path.size() - 1]
 		var choices := _weighted_directions(heading)
 		var chosen := ""
 		for dir in choices:
@@ -112,15 +113,15 @@ func _build_branch(cells: Dictionary, sx: int, sy: int, length: int, depth: int)
 			if last_dir != "" and d == DIRECTIONS[last_dir]["opposite"]:
 				continue
 			var step: Dictionary = DIRECTIONS[d]
-			var k := _key(x + step.x, y + step.y)
+			var k: String = _key(x + int(step.x), y + int(step.y))
 			if not cells.has(k):
 				chosen = d
 				break
 		if chosen == "":
 			return
 		var s: Dictionary = DIRECTIONS[chosen]
-		var nx := x + s.x
-		var ny := y + s.y
+		var nx: int = x + int(s.x)
+		var ny: int = y + int(s.y)
 		_ensure_cell(cells, nx, ny, false, depth + _i + 1)
 		_connect_cells(cells, x, y, nx, ny)
 		x = nx
@@ -162,8 +163,8 @@ func _to_room_node(cell: Dictionary, cells: Dictionary, max_critical_depth: int)
 	var exits   := _resolve_exits(cell)
 	var shape   := _resolve_shape(exits.size(), exits)
 	var is_dead_end   := conns.size() == 1
-	var is_extraction := cell["critical_path"] and cell["depth"] == max_critical_depth
-	var is_objective  := cell["critical_path"] and cell["depth"] == maxi(2, max_critical_depth - 2)
+	var is_extraction: bool = bool(cell["critical_path"]) and int(cell["depth"]) == max_critical_depth
+	var is_objective: bool = bool(cell["critical_path"]) and int(cell["depth"]) == maxi(2, max_critical_depth - 2)
 
 	var room_type := "Spawn"
 	if cell.x == 0 and cell.y == 0:
@@ -205,8 +206,8 @@ func _resolve_exits(cell: Dictionary) -> Array:
 		var parts := (k as String).split(",")
 		var cx := int(parts[0])
 		var cy := int(parts[1])
-		var dx := cx - cell.x
-		var dy := cy - cell.y
+		var dx: int = cx - int(cell.x)
+		var dy: int = cy - int(cell.y)
 		for d in DIRECTIONS.keys():
 			var step: Dictionary = DIRECTIONS[d]
 			if step.x == dx and step.y == dy:

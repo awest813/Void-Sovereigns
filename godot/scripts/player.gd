@@ -50,6 +50,8 @@ var _crouch_shape_height: float = 1.2
 func _ready() -> void:
 	_impulse_charges = max_impulse_charges
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	normal_fov = Global.base_fov
+	sprint_fov = normal_fov + 7.0
 	camera.fov = normal_fov
 
 	# Apply MARATHONER perk speed bonus
@@ -61,14 +63,12 @@ func _ready() -> void:
 # ── Input ─────────────────────────────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Mouse look
-	if event is InputEventMouseMotion:
+	# Mouse look. Pitch sign matches the previous default; invert flips it.
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		sensitivity = Global.sensitivity
 		rotate_y(-event.relative.x * sensitivity)
-		camera.rotate_x(-event.relative.y * sensitivity)
+		camera.rotate_x(event.relative.y * sensitivity * _pitch_sign())
 		camera.rotation.x = clamp(camera.rotation.x, -PI / 2.0, PI / 2.0)
-
-	# Gamepad look
-	axis_vector = Input.get_vector("look_left", "look_right", "look_up", "look_down")
 
 	if event.is_action_pressed("sprint"):
 		_is_sprint_held = true
@@ -95,10 +95,15 @@ func _physics_process(delta: float) -> void:
 	sensitivity           = Global.sensitivity
 	controller_sensitivity = Global.controller_sensitivity
 
-	# Gamepad look
+	normal_fov = Global.base_fov
+	sprint_fov = normal_fov + 7.0
+
+	# Poll the stick every frame. Motion events are not guaranteed between frames.
+	axis_vector = Input.get_vector("look_left", "look_right", "look_up", "look_down")
+	# Gamepad look is radians/second so it stays stable across frame rates.
 	if axis_vector.length_squared() > 0.01:
-		rotate_y(-axis_vector.x * controller_sensitivity)
-		camera.rotate_x(-axis_vector.y * controller_sensitivity)
+		rotate_y(-axis_vector.x * controller_sensitivity * delta)
+		camera.rotate_x(axis_vector.y * controller_sensitivity * delta * _pitch_sign())
 		camera.rotation.x = clamp(camera.rotation.x, -PI / 2.0, PI / 2.0)
 
 	# Gravity
@@ -159,6 +164,9 @@ func _process(_delta: float) -> void:
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
+func _pitch_sign() -> float:
+	return 1.0 if Global.invert_y else -1.0
+
 func _is_sprinting() -> bool:
 	return _is_sprint_held and not _is_crouch_held and velocity.length_squared() > 0.01
 
@@ -188,16 +196,11 @@ func _try_impulse_dash() -> void:
 	_last_impulse_time = Time.get_ticks_msec() / 1000.0
 	_dodge_window_until = _last_impulse_time + 0.42
 
-	# Direction from input, default to forward
-	var forward := -transform.basis.z
-	var right   :=  transform.basis.x
-	var dir     := Vector3.ZERO
-	if Input.is_physical_key_pressed(KEY_W): dir += forward
-	if Input.is_physical_key_pressed(KEY_S): dir -= forward
-	if Input.is_physical_key_pressed(KEY_D): dir += right
-	if Input.is_physical_key_pressed(KEY_A): dir -= right
+	# Direction from the move actions so a pad dash matches the stick.
+	var wish := Input.get_vector("left", "right", "up", "down")
+	var dir := transform.basis * Vector3(wish.x, 0.0, wish.y)
 	if dir.length_squared() < 0.001:
-		dir = forward
+		dir = -transform.basis.z
 	dir = dir.normalized()
 
 	velocity.x += dir.x * impulse_strength

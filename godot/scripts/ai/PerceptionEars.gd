@@ -26,10 +26,10 @@ func hear(position: Vector3, volume: float) -> void:
 # ── Internals ─────────────────────────────────────────────────────────────────
 
 func _check_sound(pos: Vector3, volume: float) -> void:
-	var owner_node := get_parent()
+	var owner_node := get_parent() as Node3D
 	if owner_node == null:
 		return
-	var dist := owner_node.global_position.distance_to(pos)
+	var dist: float = owner_node.global_position.distance_to(pos)
 	var effective_range := hearing_range * volume
 	if dist <= effective_range:
 		sound_detected.emit(pos, volume)

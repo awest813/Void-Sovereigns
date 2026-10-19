@@ -29,12 +29,13 @@ func _detonate() -> void:
 	var hits := space.intersect_shape(params)
 	var packet := DamagePacket.make(damage, DamagePacket.Type.EXPLOSIVE)
 	for hit in hits:
-		var body = hit.get("collider")
-		if body == null or body == self:
+		var body: Object = hit.get("collider")
+		if body == null or body == self or not body is Node3D:
 			continue
-		var to_centre := global_position - body.global_position
+		var node := body as Node3D
+		var to_centre: Vector3 = global_position - node.global_position
 		if body is RigidBody3D:
-			body.apply_central_impulse(to_centre.normalized() * pull_force)
+			(body as RigidBody3D).apply_central_impulse(to_centre.normalized() * pull_force)
 		HitPipeline.resolve(packet, body)
 
 	queue_free()

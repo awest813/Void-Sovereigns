@@ -49,6 +49,7 @@ var _status_line:   Label
 var _active_tab:    int = Tab.CHARACTER
 
 func _ready() -> void:
+	add_to_group("modal_ui")
 	theme = HubPaletteScript.build_theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_build()
@@ -76,11 +77,13 @@ func set_status(line: String) -> void:
 
 # ── Input ─────────────────────────────────────────────────────────────────────
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	# Consume Esc before the pause menu so the shell closes first.
 	if visible and event.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
-		return
+
+func _unhandled_input(event: InputEvent) -> void:
 	var pressed_tab: int = -1
 	if event.is_action_pressed("ui_inventory"):
 		pressed_tab = Tab.INVENTORY

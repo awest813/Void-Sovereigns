@@ -150,6 +150,28 @@ func delete_slot(slot: int) -> void:
 func switch_slot(slot: int) -> bool:
 	return load_slot(slot)
 
+func active_slot() -> int:
+	return _active_slot
+
+func has_any_save() -> bool:
+	for i in SLOT_COUNT:
+		if not slot_info(i).is_empty():
+			return true
+	return false
+
+## Wipe a slot and notify every autoload to reload defaults.
+## Settings live outside the slot file and are left untouched.
+func begin_fresh(slot: int = 0) -> void:
+	delete_slot(slot)
+	_active_slot = slot
+	_data = {}
+	flush()
+	load_completed.emit(slot)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		flush()
+
 # ── Migrations ────────────────────────────────────────────────────────────────
 
 func _run_migrations(data: Dictionary, from_version: int) -> Dictionary:

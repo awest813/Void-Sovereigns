@@ -41,7 +41,17 @@ Progress:
   - Wall panels placed at each cardinal side that has no exit, oriented inward via Y-axis rotation.
   - N/S panels span the X axis; E/W panels span the Z axis — corridors and rooms now read as enclosed spaces with directional openings.
 
+Steam release shell (Godot):
+- Title screen is the boot scene: Continue, New Game, Settings, Credits, Quit.
+- Settings persist outside the campaign slot (window mode, resolution, vsync, frame cap, volumes, mouse/stick, invert, FOV, rebinding).
+- Pause menu (Esc / Start) with resume, settings, abandon contract, return to title, confirm-quit. Steam overlay pauses the sim when GodotSteam is present.
+- Failed contracts open a KIA debrief instead of leaving the player with no way back to the station.
+- Gamepad bindings for movement, look, fire, jump, crouch, interact, reload, sprint, dash, flashlight, melee, grenade, and menu navigation.
+- SteamService talks to GodotSteam when the singleton exists, unlocks nine achievements, and syncs slot 0 through Remote Storage. Release exports refuse Spacewar app id 480.
+- `export_presets.cfg` covers Windows, Linux, and macOS and excludes `steam_appid.txt`.
+- Headless `godot --path godot -- --release-check` loads the boot, hub, mission, and player scenes and checks the shipping invariants.
+- Godot 4.4.1 now compiles the gameplay scripts. `:=` against untyped values was a hard error, and `Node.get_world_3d()` is not a method, so those call sites were given real types.
+
 TODO:
-- Next useful polish: add real local sound assets and fill in the missing Quaternius GLB asset packs, then expand `AVAILABLE_ASSET_PATHS` in `GameAssetManager`.
-- Next procedural pass: resolve visual corridor tile variants from `room.shape` (narrower wall panels for straight corridors vs. wide room panels), then refine AI Director with LOS-aware spawn-point selection.
-- Possible next gameplay beat: add a simple reinforcement wave triggered when the objective is completed (pull from SecurityBot.forceAlert on off-screen rooms past the objective on the critical path).
+- Install GodotSteam plus the Steamworks redistributable, set the real App ID, create the achievements in Steamworks, then upload with `steam/export_release.sh` and `steamcmd`.
+- Content still thin for a store page: local sound, corridor mesh variants, and the remaining Quaternius packs.

@@ -3,10 +3,11 @@ extends Node3D
 ## Attach to the mission scene root; call build(seed) from mission.gd.
 
 const ROOM_SCENE := "res://scenes/entities/room_placeholder.tscn"
+const _DungeonGen = preload("res://scripts/missions/DungeonGenerator.gd")
 
 ## Called by the mission scene after the player is spawned.
 func build(seed_val: float) -> Dictionary:
-	var gen := DungeonGenerator.new()
+	var gen = _DungeonGen.new()
 	var rooms: Array = gen.generate(seed_val)
 
 	var spawn_pos    := Vector3.ZERO

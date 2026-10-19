@@ -26,6 +26,10 @@ npm run build   # production build
 npm run check   # TypeScript type check
 ```
 
+### Steam
+
+The desktop build that ships on Steam is the Godot 4 project in [`godot/`](godot/README.md). It boots to a title screen (continue, new game, settings, credits, quit), pauses on Esc / Start and when the Steam overlay opens, and exports from `export_presets.cfg`. Replace `godot/steam/app_id.txt` with the real Steamworks App ID before a store upload. App ID 480 is the Spacewar test app and is refused in release exports.
+
 ### Architecture
 
 ```

@@ -6,5 +6,6 @@
 .DS_Store
 Thumbs.db
 
-# Export templates (large, not needed in repo)
-export_presets.cfg
+# Export templates are downloaded by the editor. Presets stay in the repo.
+# steam_appid.txt is a local Steam client hint (Spacewar) and is excluded
+# from release exports by export_presets.cfg.
